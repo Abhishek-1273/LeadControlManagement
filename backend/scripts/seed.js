@@ -10,11 +10,34 @@ async function seed() {
     process.exit(1);
   }
 
-  // DB connect — ye line zaroori hai, warna findOne timeout ho jaata hai
-  await mongoose.connect(process.env.MONGO_URI);
-  console.log('Mongo connected');
+  const email = process.env.SEED_ADMIN_EMAIL;
+  const password = process.env.SEED_ADMIN_PASSWORD;
 
-  // --- Employee (testing ke liye) ---
+  if (!email || !password || password.length < 10) {
+    console.error(
+      'Set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD (>= 10 chars) in your .env first.'
+    );
+    process.exit(1);
+  }
+
+  await mongoose.connect(process.env.MONGO_URI);
+
+  // --- Admin ---
+  const existing = await User.findOne({ email: email.toLowerCase() });
+  if (existing) {
+    console.log(`Admin "${email}" already exists. Nothing to do.`);
+  } else {
+    await User.create({
+      name: 'Admin',
+      email: email.toLowerCase(),
+      password, // hashed by pre-save hook
+      role: 'admin',
+      isActive: true,
+    });
+    console.log(`Admin "${email}" created.`);
+  }
+
+  // --- Employee (optional, testing ke liye) ---
   const empEmail = process.env.SEED_EMP_EMAIL;
   const empPassword = process.env.SEED_EMP_PASSWORD;
 
@@ -32,8 +55,6 @@ async function seed() {
     } else {
       console.log(`Employee "${empEmail}" already exists.`);
     }
-  } else {
-    console.log('SEED_EMP_EMAIL / SEED_EMP_PASSWORD not set in .env');
   }
 
   await mongoose.disconnect();

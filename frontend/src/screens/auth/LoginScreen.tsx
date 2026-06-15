@@ -18,6 +18,7 @@ export default function LoginScreen() {
 
   const { login } = useAuthStore();
 
+
   const handleLogin = async () => {
     if (!email || !password) {
       Toast.show({
@@ -27,6 +28,7 @@ export default function LoginScreen() {
       });
       return;
     }
+    
 
     setIsLoading(true);
     try {

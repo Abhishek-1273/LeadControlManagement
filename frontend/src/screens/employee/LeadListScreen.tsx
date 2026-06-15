@@ -4,7 +4,7 @@ import {
   TouchableOpacity, TextInput, RefreshControl,
   Linking, ScrollView, Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -14,7 +14,6 @@ import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { Lead, LeadStatus } from '../../types/lead.types';
 import { useLeadStore } from '../../store/leadStore';
-import axiosInstance from '../../api/axiosInstance';
 
 const STATUS_FILTERS: { label: string; value: LeadStatus | 'All' }[] = [
   { label: 'All', value: 'All' },
@@ -292,6 +291,7 @@ const filterStyles = StyleSheet.create({
 // Main Screen
 export default function LeadListScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { leads, fetchLeads, isLoading, updateStatus, togglePin } =
     useLeadStore();
   const [search, setSearch] = useState('');
@@ -372,7 +372,7 @@ export default function LeadListScreen() {
 
   return (
     <View style={styles.wrapper}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}> 
 
         {/* Header */}
         <View style={styles.header}>
@@ -419,7 +419,7 @@ export default function LeadListScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersContainer}
+          contentContainerStyle={[styles.filtersContainer,  { paddingBottom: insets.bottom + 80 }]}
           style={styles.filtersScroll}
         >
           {STATUS_FILTERS.map((item) => (
@@ -462,7 +462,7 @@ export default function LeadListScreen() {
             ...filteredUnpinned.map(l => ({ ...l, isHeader: false })),
           ] as any[]}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent,  { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -525,7 +525,7 @@ export default function LeadListScreen() {
 }
 
 const styles = StyleSheet.create({
-  wrapper: {backgroundColor: colors.background, height: 780 },
+  wrapper: {backgroundColor: colors.background},
   safeArea: { flex: 1 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between',

@@ -19,7 +19,7 @@ exports.login = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ email: String(email).toLowerCase().trim() });
   if (!user) {
-    return res.status(401).json({ message: 'Email ya password galat hai' });
+    return res.status(401).json({ message: 'Email or password is wrong' });
   }
   if (!user.isActive) {
     return res.status(403).json({ message: 'Account inactive hai' });
@@ -27,7 +27,7 @@ exports.login = asyncHandler(async (req, res) => {
 
   const isMatch = await user.comparePassword(password);
   if (!isMatch) {
-    return res.status(401).json({ message: 'Email ya password galat hai' });
+    return res.status(401).json({ message: 'Email or password is wrong' });
   }
 
   res.json({

@@ -16,7 +16,7 @@ const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 function TabNavigator() {
-  const insets = useSafeAreaInsets(); // ✅ dynamic safe area
+  const insets = useSafeAreaInsets(); // ✅ dynamic safe
 
   return (
     <Tab.Navigator

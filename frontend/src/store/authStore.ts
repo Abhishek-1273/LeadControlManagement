@@ -25,6 +25,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         password,
       });
       const { token, user } = response.data;
+      console.log('LOGIN USER ROLE:', user?.role); // web console mein dekho
       await storage.setToken(token);
       await storage.setUser(user);
       set({ user, token, isAuthenticated: true, isLoading: false });

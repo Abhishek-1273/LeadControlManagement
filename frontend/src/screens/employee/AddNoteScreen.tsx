@@ -81,7 +81,7 @@ export default function AddNoteScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 300 }]}
         keyboardShouldPersistTaps="handled"
       >
         <TextInput

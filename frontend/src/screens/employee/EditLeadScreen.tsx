@@ -119,7 +119,7 @@ export default function EditLeadScreen() {
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
                 <ScrollView
-                    contentContainerStyle={styles.content}
+                    contentContainerStyle={[styles.content, { paddingBottom: 300 }]}
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode="none"
                 >

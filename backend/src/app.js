@@ -19,7 +19,7 @@ connectDB();
 app.use(helmet());
 
 // --- CORS: allow only known origins ---
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:8081')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
@@ -44,6 +44,7 @@ app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/leads', require('./routes/lead.routes'));
+app.use('/api/admin', require('./routes/admin.routes'));
 
 app.use(notFound);      // unmatched routes -> 404
 app.use(errorHandler);  // central error handler -> safe responses

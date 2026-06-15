@@ -79,7 +79,7 @@ export default function AddFollowUpScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 300 }]}>
 
         {/* Date Picker */}
         <View style={styles.inputGroup}>
