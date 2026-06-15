@@ -6,30 +6,46 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import { useNavigation } from '@react-navigation/native';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
+const MenuItem = ({
+    icon, label, onPress, color
+}: {
+    icon: string;
+    label: string;
+    onPress: () => void;
+    color?: string;
+}) => (
+    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+        <View style={[styles.menuIcon, { backgroundColor: (color || colors.primary) + '15' }]}>
+            <Ionicons name={icon as any} size={20} color={color || colors.primary} />
+        </View>
+        <Text style={[styles.menuLabel, color ? { color } : {}]}>{label}</Text>
+        <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+    </TouchableOpacity>
+);
+
 export default function AdminProfileScreen() {
     const { user, logout } = useAuthStore();
+    const navigation = useNavigation<any>();
 
-const handleLogout = () => {
-  if (Platform.OS === 'web') {
-    // Alert.alert web pe kaam nahi karta
-    logout();
-    return;
-  }
-  Alert.alert('Logout', 'Are you sure you want to logout?', [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Logout', style: 'destructive', onPress: logout },
-  ]);
-};
+    const handleLogout = () => {
+        if (Platform.OS === 'web') {
+            logout();
+            return;
+        }
+        Alert.alert('Logout', 'Are you sure you want to logout?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Logout', style: 'destructive', onPress: logout },
+        ]);
+    };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.pageTitle}>Settings</Text>
-
+        <SafeAreaView style={styles.container} edges={['top']} >
+            <ScrollView showsVerticalScrollIndicator={true}>
                 {/* Profile */}
                 <View style={styles.profileSection}>
                     <View style={styles.avatar}>
@@ -40,55 +56,61 @@ const handleLogout = () => {
                     <Text style={styles.name}>{user?.name}</Text>
                     <Text style={styles.email}>{user?.email}</Text>
                     <View style={styles.adminBadge}>
-                        <Ionicons name="shield-checkmark" size={14}
-                            color={colors.primary} />
+                        <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
                         <Text style={styles.adminText}>ADMIN</Text>
                     </View>
                 </View>
 
-                {/* Menu */}
+                {/* Account Menu */}
+                <Text style={styles.sectionTitle}>Account</Text>
                 <View style={styles.menuCard}>
-                    {[
-                        { icon: 'person-outline', label: 'Edit Profile' },
-                        { icon: 'notifications-outline', label: 'Notifications' },
-                        { icon: 'lock-closed-outline', label: 'Change Password' },
-                        { icon: 'help-circle-outline', label: 'Help & Support' },
-                    ].map((item, index, arr) => (
-                        <React.Fragment key={item.label}>
-                            <TouchableOpacity style={styles.menuItem}>
-                                <View style={styles.menuIcon}>
-                                    <Ionicons name={item.icon as any} size={20}
-                                        color={colors.primary} />
-                                </View>
-                                <Text style={styles.menuLabel}>{item.label}</Text>
-                                <Ionicons name="chevron-forward" size={18}
-                                    color={colors.textLight} />
-                            </TouchableOpacity>
-                            {index < arr.length - 1 && (
-                                <View style={styles.divider} />
-                            )}
-                        </React.Fragment>
-                    ))}
+                    <MenuItem
+                        icon="person-outline"
+                        label="Edit Profile"
+                        onPress={() => navigation.navigate('EditProfile')}
+                    />
+                    <View style={styles.divider} />
+                    <MenuItem
+                        icon="lock-closed-outline"
+                        label="Change Password"
+                        onPress={() => navigation.navigate('ChangePassword')}
+                    />
+                    <View style={styles.divider} />
+                    <MenuItem
+                        icon="notifications-outline"
+                        label="Notifications"
+                        onPress={() => navigation.navigate('Notifications')}
+                    />
+                    <View style={styles.divider} />
+                    <MenuItem
+                        icon="paper-plane-outline"
+                        label="Send Notification"
+                        onPress={() => navigation.navigate('SendNotification')}
+                    />
+                    <TouchableOpacity
+                        style={styles.menuItem}
+                        onPress={() => navigation.navigate('Sidebar')}
+                    >
+                        <View style={[styles.menuIcon, { backgroundColor: colors.primaryLight }]}>
+                            <Ionicons name="menu-outline" size={20} color={colors.primary} />
+                        </View>
+                        <Text style={styles.menuLabel}>More Options</Text>
+                        <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+                    </TouchableOpacity>
                 </View>
-
-                {/* Logout */}
-                <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-                    <Ionicons name="log-out-outline" size={20} color={colors.error} />
-                    <Text style={styles.logoutText}>Logout</Text>
-                </TouchableOpacity>
-
-                <Text style={styles.version}>v1.0.0 — Lead Manager Admin</Text>
             </ScrollView>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    pageTitle: {
-        fontSize: typography.xxl, fontWeight: typography.bold,
-        color: colors.textPrimary, paddingHorizontal: spacing.base,
-        paddingTop: spacing.base, paddingBottom: spacing.sm,
+    container: { flex: 1, backgroundColor: colors.background},
+    sectionTitle: {
+        fontSize: typography.xs, fontWeight: typography.bold,
+        color: colors.textSecondary, letterSpacing: 1,
+        textTransform: 'uppercase',
+        paddingHorizontal: spacing.base,
+        marginTop: spacing.md, marginBottom: spacing.xs,
     },
     profileSection: {
         alignItems: 'center', paddingVertical: spacing.xl, gap: spacing.sm,
@@ -127,7 +149,6 @@ const styles = StyleSheet.create({
     },
     menuIcon: {
         width: 40, height: 40, borderRadius: 12,
-        backgroundColor: colors.primaryLight,
         justifyContent: 'center', alignItems: 'center',
     },
     menuLabel: {

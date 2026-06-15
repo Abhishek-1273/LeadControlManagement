@@ -4,6 +4,15 @@ export const endpoints = {
   logout: '/auth/logout',
   refreshToken: '/auth/refresh',
   forgotPassword: '/auth/forgot-password',
+  changePassword: '/auth/change-password',
+
+  // Notifications
+  notifications: '/notifications',
+  notificationsUnread: '/notifications/unread-count',
+  notificationsReadAll: '/notifications/read-all',
+  notificationRead: (id: string) => `/notifications/${id}/read`,
+  notificationDelete: (id: string) => `/notifications/${id}`,
+  sendNotification: '/notifications/send',
 
   // Leads
   leads: '/leads',

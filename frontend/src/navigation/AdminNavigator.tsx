@@ -15,6 +15,15 @@ import AddEmployeeScreen from '../screens/admin/AddEmployeeScreen';
 import EmployeeDetailScreen from '../screens/admin/EmployeeDetailScreen';
 import AdminLeadDetailScreen from '../screens/admin/AdminLeadDetailScreen';
 import AssignLeadScreen from '../screens/admin/AssignLeadScreen';
+import SidebarScreen from '../screens/common/SidebarScreen';
+import EditProfileScreen from '../screens/common/EditProfileScreen';
+import NotificationsScreen from '../screens/common/NotificationsScreen';
+import ChangePasswordScreen from '../screens/common/ChangePasswordScreen';
+import AboutScreen from '../screens/common/AboutScreen';
+import TermsScreen from '../screens/common/TermsScreen';
+import PrivacyScreen from '../screens/common/PrivacyScreen';
+import HelpSupportScreen from '../screens/common/HelpSupportScreen';
+import SendNotificationScreen from '../screens/admin/SendNotificationScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -70,6 +79,15 @@ export default function AdminNavigator() {
       <Stack.Screen name="EmployeeDetail" component={EmployeeDetailScreen} />
       <Stack.Screen name="AdminLeadDetail" component={AdminLeadDetailScreen} />
       <Stack.Screen name="AssignLead" component={AssignLeadScreen} />
+      <Stack.Screen name="Sidebar" component={SidebarScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="SendNotification" component={SendNotificationScreen} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <Stack.Screen name="About" component={AboutScreen} />
+      <Stack.Screen name="Terms" component={TermsScreen} />
+      <Stack.Screen name="Privacy" component={PrivacyScreen} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
     </Stack.Navigator>
   );
 }

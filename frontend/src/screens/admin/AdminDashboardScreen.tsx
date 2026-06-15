@@ -112,7 +112,7 @@ export default function AdminDashboardScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Admin Panel 👑</Text>
+            <Text style={styles.greeting}>Admin Panel</Text>
             <Text style={styles.subGreeting}>
               Welcome back, {user?.name?.split(' ')[0]}
             </Text>
@@ -208,11 +208,6 @@ export default function AdminDashboardScreen() {
                 ]}>
                   <Text style={styles.rankText}>{index + 1}</Text>
                 </View>
-                <View style={styles.empAvatar}>
-                  <Text style={styles.empAvatarText}>
-                    {emp.name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
                 <View style={styles.empInfo}>
                   <Text style={styles.empName}>{emp.name}</Text>
                   <Text style={styles.empEmail}>{emp.email}</Text>
@@ -238,7 +233,7 @@ export default function AdminDashboardScreen() {
               <View style={[styles.quickIcon, { backgroundColor: '#E8F8F2' }]}>
                 <Ionicons name="person-add" size={22} color={colors.primary} />
               </View>
-              <Text style={styles.quickLabel}>Add Employee</Text>
+              <Text style={styles.quickLabel}>Add</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.quickBtn}
@@ -307,7 +302,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.white, marginHorizontal: spacing.base,
-    marginBottom: spacing.md, borderRadius: 16, padding: spacing.base,
+    marginVertical: spacing.md, borderRadius: 16, padding: spacing.base,
     elevation: 2, shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08, shadowRadius: 4,
@@ -317,7 +312,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginBottom: spacing.md,
   },
   cardTitle: {
-    fontSize: typography.md, fontWeight: typography.bold,
+    fontSize: 14, fontWeight: typography.bold,
     color: colors.textPrimary, marginBottom: spacing.sm,
   },
   seeAll: {
@@ -342,14 +337,6 @@ const styles = StyleSheet.create({
   rankText: {
     fontSize: typography.xs, fontWeight: typography.bold, color: colors.white,
   },
-  empAvatar: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  empAvatarText: {
-    fontSize: typography.base, fontWeight: typography.bold, color: colors.primary,
-  },
   empInfo: { flex: 1 },
   empName: {
     fontSize: typography.sm, fontWeight: typography.semiBold, color: colors.textPrimary,
@@ -357,19 +344,19 @@ const styles = StyleSheet.create({
   empEmail: { fontSize: typography.xs, color: colors.textSecondary },
   empStats: { alignItems: 'center' },
   empLeadCount: {
-    fontSize: typography.md, fontWeight: typography.bold, color: colors.primary,
+    fontSize: typography.base, fontWeight: typography.bold, color: colors.primary,
   },
   empLeadLabel: { fontSize: typography.xs, color: colors.textSecondary },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   quickActions: {
-    flexDirection: 'row', justifyContent: 'space-around', marginTop: spacing.sm,
+    flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm,
   },
-  quickBtn: { alignItems: 'center', gap: spacing.xs },
+  quickBtn: { alignItems: 'center', width: '22%'},
   quickIcon: {
     width: 52, height: 52, borderRadius: 16,
     justifyContent: 'center', alignItems: 'center',
   },
   quickLabel: {
-    fontSize: typography.xs, color: colors.textSecondary, fontWeight: typography.medium,
+    fontSize: 9, color: colors.textSecondary, alignContent: 'center', fontWeight: typography.medium,
   },
 });

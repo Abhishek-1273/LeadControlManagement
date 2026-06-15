@@ -525,7 +525,7 @@ export default function LeadListScreen() {
 }
 
 const styles = StyleSheet.create({
-  wrapper: {backgroundColor: colors.background},
+  wrapper: {backgroundColor: colors.background, flex: 1},
   safeArea: { flex: 1 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between',

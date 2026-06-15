@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
     marginHorizontal: spacing.base,
-    marginBottom: spacing.md,
+    marginVertical: spacing.xl,
     borderRadius: 16,
     padding: spacing.base,
     elevation: 2,

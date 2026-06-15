@@ -10,6 +10,14 @@ import AddFollowUpScreen from '../screens/employee/AddFollowUpScreen';
 import AddNoteScreen from '../screens/employee/AddNoteScreen';
 import ProfileScreen from '../screens/employee/ProfileScreen';
 import EditLeadScreen from '../screens/employee/EditLeadScreen';
+import SidebarScreen from '../screens/common/SidebarScreen';
+import EditProfileScreen from '../screens/common/EditProfileScreen';
+import NotificationsScreen from '../screens/common/NotificationsScreen';
+import ChangePasswordScreen from '../screens/common/ChangePasswordScreen';
+import AboutScreen from '../screens/common/AboutScreen';
+import TermsScreen from '../screens/common/TermsScreen';
+import PrivacyScreen from '../screens/common/PrivacyScreen';
+import HelpSupportScreen from '../screens/common/HelpSupportScreen';
 import { colors } from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
@@ -60,6 +68,14 @@ export default function EmployeeNavigator() {
       <Stack.Screen name="AddFollowUp" component={AddFollowUpScreen} />
       <Stack.Screen name="AddNote" component={AddNoteScreen} />
       <Stack.Screen name="EditLead" component={EditLeadScreen} />
+      <Stack.Screen name="Sidebar" component={SidebarScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <Stack.Screen name="About" component={AboutScreen} />
+      <Stack.Screen name="Terms" component={TermsScreen} />
+      <Stack.Screen name="Privacy" component={PrivacyScreen} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
     </Stack.Navigator>
   );
 }
