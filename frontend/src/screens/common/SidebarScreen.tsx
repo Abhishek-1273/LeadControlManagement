@@ -1,7 +1,7 @@
 import React from 'react';
 import {
     View, Text, StyleSheet, ScrollView,
-    TouchableOpacity, Linking,
+    TouchableOpacity, Platform, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,8 @@ import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
 const APP_VERSION = '1.0.0';
+
+
 
 const SidebarItem = ({ icon, label, onPress, color }: any) => (
     <TouchableOpacity style={styles.sidebarItem} onPress={onPress}>
@@ -28,6 +30,25 @@ const SidebarItem = ({ icon, label, onPress, color }: any) => (
 export default function SidebarScreen() {
     const navigation = useNavigation<any>();
     const { user, logout } = useAuthStore();
+
+      const handleLogout = () => {
+        if (Platform.OS === 'web') {
+          logout();
+          return;
+        }
+        Alert.alert(
+          'Logout',
+          'Are you sure you want to logout?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Logout',
+              style: 'destructive',
+              onPress: logout,
+            },
+          ]
+        );
+      };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -96,7 +117,7 @@ export default function SidebarScreen() {
                     <SidebarItem
                         icon="log-out-outline"
                         label="Logout"
-                        onPress={logout}
+                        onPress={handleLogout}
                         color={colors.error}
                     />
                 </View>

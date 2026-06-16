@@ -35,7 +35,7 @@ export default function InfoScreenLayout({ title, intro, sections, updatedOn }: 
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
         showsVerticalScrollIndicator={false}
       >
         {updatedOn && <Text style={styles.updated}>Last updated: {updatedOn}</Text>}

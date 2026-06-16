@@ -32,6 +32,7 @@ interface LeadStore {
   addNote: (id: string, note: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
   updateLeadInfo: (id: string, data: any) => Promise<void>; // ✅
+  completeFollowUp: (followUpId: string) => Promise<void>;
   clearSelectedLead: () => void;
 }
 
@@ -165,6 +166,12 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
     } catch (err: any) {
       throw err;
     }
+  },
+
+  completeFollowUp: async (followUpId) => {
+    await axiosInstance.patch(`/leads/followup/${followUpId}/complete`);
+    // Refresh today's follow-ups
+    await get().fetchTodayFollowUps();
   },
 
   clearSelectedLead: () => set({ selectedLead: null }),

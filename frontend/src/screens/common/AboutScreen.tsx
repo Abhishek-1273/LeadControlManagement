@@ -28,7 +28,7 @@ export default function AboutScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.logoWrap}>
           <View style={styles.logo}>
             <Text style={styles.logoText}>LM</Text>

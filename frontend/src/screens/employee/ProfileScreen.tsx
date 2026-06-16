@@ -39,25 +39,6 @@ export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
   const navigation = useNavigation<any>();
 
-  const handleLogout = () => {
-    if (Platform.OS === 'web') {
-      logout();
-      return;
-    }
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: logout,
-        },
-      ]
-    );
-  };
-
   const getInitials = (name: string) => {
     return name
       ?.split(' ')

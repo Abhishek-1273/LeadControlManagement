@@ -267,6 +267,27 @@ exports.getTodayFollowUps = asyncHandler(async (req, res) => {
   res.json({ followUps, total: followUps.length });
 });
 
+
+// Complete Follow-Up
+exports.completeFollowUp = asyncHandler(async (req, res) => {
+  const { followUpId } = req.params;
+
+  const followUp = await FollowUp.findById(followUpId);
+  if (!followUp) {
+    return res.status(404).json({ message: 'Follow-up not found' });
+  }
+
+  // Sirf apna follow-up complete kar sakta hai employee
+  if (followUp.employee.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+
+  followUp.isCompleted = true;
+  await followUp.save();
+
+  res.json({ message: 'Follow-up marked complete', followUp });
+});
+
 // Update Lead Info
 exports.updateLeadInfo = asyncHandler(async (req, res) => {
   const { name, phone, email, city, car, campaign } = req.body;

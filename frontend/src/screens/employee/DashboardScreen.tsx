@@ -11,10 +11,12 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
+import { ActivityIndicator } from 'react-native';
 import { useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Stat Card Component
+// Stat Card with subtle gradient
 const StatCard = ({
   icon, label, value, bgColor, iconColor
 }: {
@@ -35,9 +37,10 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { height } = useWindowDimensions();
-  const { user, logout } = useAuthStore();
-  const { stats, fetchDashboardStats, followUps, fetchTodayFollowUps } = useLeadStore();
+  const { user } = useAuthStore();
+  const { stats, fetchDashboardStats, followUps, fetchTodayFollowUps, completeFollowUp } = useLeadStore();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [completing, setCompleting] = React.useState<string | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -50,6 +53,23 @@ export default function DashboardScreen() {
     setRefreshing(true);
     await Promise.all([fetchDashboardStats(), fetchTodayFollowUps()]);
     setRefreshing(false);
+  };
+
+  const handleComplete = async (followUpId: string) => {
+    setCompleting(followUpId);
+    try {
+      await completeFollowUp(followUpId);
+      Toast.show({
+        type: 'success',
+        text1: 'Done! ✅',
+        text2: 'Follow-up marked as complete',
+        visibilityTime: 1500,
+      });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Failed ❌', text2: 'Try again' });
+    } finally {
+      setCompleting(null);
+    }
   };
 
   const getGreeting = () => {
@@ -135,7 +155,10 @@ export default function DashboardScreen() {
 
         {/* Lead Status Breakdown */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Lead Status Breakdown</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="bar-chart" size={18} color={colors.primary} />
+            <Text style={styles.cardTitle}>Lead Status Breakdown</Text>
+          </View>
 
           {stats.totalLeads === 0 ? (
             <View style={styles.emptyState}>
@@ -187,7 +210,8 @@ export default function DashboardScreen() {
 
         {/* Today's Follow-ups */}
         <View style={styles.card}>
-          <View style={styles.cardHeader}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="time" size={18} color={colors.primary} />
             <Text style={styles.cardTitle}>Today's Follow-ups</Text>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{stats.todayFollowUps}</Text>
@@ -206,10 +230,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   key={index}
                   style={styles.followUpItem}
-                  onPress={() => navigation.navigate('Leads', {
-                    screen: 'LeadDetail',
-                    params: { leadId: fu.lead?._id }
-                  })}
+                  onPress={() => navigation.navigate('LeadDetail', { leadId: fu.lead?._id })}
                 >
                   <View style={styles.followUpLeft}>
                     <View style={styles.timeCircle}>
@@ -222,11 +243,17 @@ export default function DashboardScreen() {
                       <Text style={styles.followUpTime}>{fu.time}</Text>
                     </View>
                   </View>
-                  {fu.notes ? (
-                    <Text style={styles.followUpNote} numberOfLines={1}>
-                      {fu.notes}
-                    </Text>
-                  ) : null}
+                  <TouchableOpacity
+                    style={styles.completeBtn}
+                    onPress={() => handleComplete(fu._id)}
+                    disabled={completing === fu._id}
+                  >
+                    {completing === fu._id ? (
+                      <ActivityIndicator size={14} color={colors.white} />
+                    ) : (
+                      <Ionicons name="checkmark" size={16} color={colors.white} />
+                    )}
+                  </TouchableOpacity>
                 </TouchableOpacity>
               ))}
             </View>
@@ -248,7 +275,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.base,
     paddingTop: spacing.base,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.lg,
   },
   greeting: {
     fontSize: typography.xl,
@@ -274,7 +301,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: spacing.base,
     gap: spacing.sm,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.lg,
     marginTop: spacing.xs,
   },
   statCard: {
@@ -284,6 +311,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     minHeight: 90,
+    elevation: 2,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   statValue: {
     fontSize: typography.xl,
@@ -298,7 +332,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
     marginHorizontal: spacing.base,
-    marginVertical: spacing.xl,
+    marginVertical: spacing.lg,
     borderRadius: 16,
     padding: spacing.base,
     elevation: 2,
@@ -306,18 +340,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
-  cardHeader: {
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   cardTitle: {
     fontSize: typography.md,
     fontWeight: typography.semiBold,
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    flex: 1,
   },
   followUpList: { gap: spacing.sm, marginTop: spacing.sm },
   followUpItem: {
@@ -343,14 +379,17 @@ const styles = StyleSheet.create({
     maxWidth: 100,
   },
   statusGrid: {
-    gap: spacing.sm,
-    marginTop: spacing.sm,
+    gap: spacing.md,
+    marginTop: spacing.md,
   },
   statusItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: '#FAFAFA',
+    borderRadius: 12,
   },
   statusDot: {
     width: 10, height: 10, borderRadius: 5,
@@ -375,14 +414,14 @@ const styles = StyleSheet.create({
     minWidth: 24, textAlign: 'right',
   },
   badge: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: 20,
   },
   badgeText: {
     fontSize: typography.xs,
-    color: colors.primary,
+    color: colors.white,
     fontWeight: typography.bold,
   },
   emptyState: {
@@ -394,6 +433,11 @@ const styles = StyleSheet.create({
     fontSize: typography.base,
     fontWeight: typography.medium,
     color: colors.textSecondary,
+  },
+  completeBtn: {
+    backgroundColor: colors.primary,
+    width: 32, height: 32, borderRadius: 16,
+    justifyContent: 'center', alignItems: 'center',
   },
   emptySubText: {
     fontSize: typography.sm,

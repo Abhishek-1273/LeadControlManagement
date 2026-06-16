@@ -26,7 +26,7 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor — 401 = expired/invalid token -> clear session
+// Response Interceptor — 401 = expired/invalid token -> clear sessio
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {

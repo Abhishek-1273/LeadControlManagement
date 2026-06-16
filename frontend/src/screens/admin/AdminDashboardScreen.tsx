@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import { useAuthStore } from '../../store/authStore';
 import { useAdminStore } from '../../store/adminStore';
@@ -13,6 +12,7 @@ import { useWindowDimensions } from 'react-native';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 const CHART_WIDTH = width - spacing.base * 2 - 32;
@@ -53,7 +53,7 @@ export default function AdminDashboardScreen() {
   const navigation = useNavigation<any>();
   const { user, logout } = useAuthStore();
   const { height } = useWindowDimensions();
-  const insets = useSafeAreaInsets(); // ✅ add
+  const insets = useSafeAreaInsets();
   const { stats, employees, fetchAdminStats, fetchEmployees } = useAdminStore();
   const [refreshing, setRefreshing] = React.useState(false);
 
@@ -97,10 +97,10 @@ export default function AdminDashboardScreen() {
     .slice(0, 5);
 
   return (
-    <SafeAreaView style={[styles.container, { height }]} edges={['top']}> 
+    <SafeAreaView style={[styles.container, { height }]} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} 
+        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -146,7 +146,10 @@ export default function AdminDashboardScreen() {
 
         {/* Bar Chart */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Leads by Status</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="bar-chart" size={18} color={colors.primary} />
+            <Text style={styles.cardTitle}>Leads by Status</Text>
+          </View>
           {stats.totalLeads > 0 ? (
             <BarChart
               data={statusChartData}
@@ -169,7 +172,10 @@ export default function AdminDashboardScreen() {
 
         {/* Line Chart */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Monthly Leads Trend</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="trending-up" size={18} color={colors.primary} />
+            <Text style={styles.cardTitle}>Monthly Leads Trend</Text>
+          </View>
           <LineChart
             data={monthlyChartData}
             width={CHART_WIDTH}
@@ -182,9 +188,15 @@ export default function AdminDashboardScreen() {
 
         {/* Employee Performance */}
         <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Employee Performance</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('AdminEmployees')}>
+          <View style={styles.sectionHeaderWithAction}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="star" size={18} color={colors.primary} />
+              <Text style={styles.cardTitle}>Top Performers</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.seeAllBtn}
+              onPress={() => navigation.navigate('AdminEmployees')}
+            >
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -226,7 +238,10 @@ export default function AdminDashboardScreen() {
 
         {/* Quick Actions */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Quick Actions</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="flash" size={18} color={colors.primary} />
+            <Text style={styles.cardTitle}>Quick Actions</Text>
+          </View>
           <View style={styles.quickActions}>
             <TouchableOpacity style={styles.quickBtn}
               onPress={() => navigation.navigate('AddEmployee')}>
@@ -271,7 +286,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', paddingHorizontal: spacing.base,
-    paddingTop: spacing.base, paddingBottom: spacing.sm,
+    paddingTop: spacing.base, paddingBottom: spacing.lg,
   },
   greeting: {
     fontSize: typography.xl, fontWeight: typography.bold,
@@ -286,11 +301,18 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row', paddingHorizontal: spacing.base,
-    gap: spacing.sm, marginBottom: spacing.sm, marginTop: spacing.xs,
+    gap: spacing.sm, marginBottom: spacing.lg, marginTop: spacing.xs,
   },
   statCard: {
     flex: 1, borderRadius: 16, padding: spacing.sm,
     alignItems: 'center', gap: 4, minHeight: 90,
+    elevation: 2,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   statValue: {
     fontSize: typography.xl, fontWeight: typography.bold,
@@ -302,32 +324,50 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.white, marginHorizontal: spacing.base,
-    marginVertical: spacing.md, borderRadius: 16, padding: spacing.base,
+    marginVertical: spacing.lg, borderRadius: 16, padding: spacing.base,
     elevation: 2, shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08, shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
-  cardHeader: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: spacing.md,
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    flex: 1,
+  },
+  sectionHeaderWithAction: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    width: '100%',
   },
   cardTitle: {
     fontSize: 14, fontWeight: typography.bold,
-    color: colors.textPrimary, marginBottom: spacing.sm,
+    color: colors.textPrimary,
+    flex: 1,
   },
   seeAll: {
-    fontSize: typography.sm, color: colors.primary,
+    fontSize: typography.xs, color: colors.primary,
     fontWeight: typography.semiBold,
+  },
+  seeAllBtn: {
+    paddingLeft: spacing.md,
   },
   chart: { borderRadius: 16, marginTop: spacing.sm },
   emptyChart: {
-    alignItems: 'center', paddingVertical: spacing.xl, gap: spacing.xxxl,
+    alignItems: 'center', paddingVertical: spacing.xl, gap: spacing.md,
   },
   emptyText: { fontSize: typography.base, color: colors.textSecondary },
   empRow: {
     flexDirection: 'row', alignItems: 'center',
-    paddingVertical: spacing.sm, gap: spacing.sm,
-    borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+    paddingVertical: spacing.md, paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+    backgroundColor: '#FAFAFA',
+    borderRadius: 12,
+    marginBottom: spacing.sm,
   },
   rankCircle: {
     width: 24, height: 24, borderRadius: 12,

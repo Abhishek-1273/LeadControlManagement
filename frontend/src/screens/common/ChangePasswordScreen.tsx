@@ -116,9 +116,10 @@ export default function ChangePasswordScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: 300 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        
       >
         <View style={styles.iconBanner}>
           <View style={styles.bannerIcon}>

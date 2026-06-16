@@ -5,10 +5,8 @@ export type LeadStatus =
   | 'Interested'
   | 'Visitor'
   | 'Booked'
-  | 'Closed'
   | 'Uninterested'
   | 'No Response'
-  | 'Wrong Number';
 
 export interface Lead {
   _id: string;

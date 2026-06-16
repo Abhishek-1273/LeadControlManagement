@@ -23,17 +23,14 @@ const STATUS_COLORS: Record<string, string> = {
   'Interested': '#10B981',
   'Visitor': '#06B6D4',
   'Booked': '#059669',
-  'Closed': '#6B7280',
   'Uninterested': '#EF4444',
   'No Response': '#9CA3AF',
-  'Wrong Number': '#F97316',
 };
 
 const ALL_STATUSES: LeadStatus[] = [
   'New Lead', 'Contacted', 'Follow Up', 'Interested',
-  'Visitor', 'Booked', 'Closed', 'Uninterested',
-  'No Response', 'Wrong Number',
-];
+  'Visitor', 'Booked', 'Uninterested',
+  'No Response']
 
 const TimelineItem = ({ icon, title, desc, time, isLast }: {
   icon: string; title: string;
@@ -330,20 +327,20 @@ export default function LeadDetailScreen() {
 
         {/* Customer Info */}
         <View style={styles.card}>
-        <View style={styles.cardbox}>
-          <Text style={styles.cardTitle}>Customer Information</Text>
-          <View style={styles.headerRight}>
-            <TouchableOpacity
-              style={styles.editBtn}
-              onPress={() => navigation.navigate('EditLead', { leadId })}
-            >
-              <Ionicons
-                name="create-outline"
-                size={20}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-          </View>
+          <View style={styles.cardbox}>
+            <Text style={styles.cardTitle}>Customer Information</Text>
+            <View style={styles.headerRight}>
+              <TouchableOpacity
+                style={styles.editBtn}
+                onPress={() => navigation.navigate('EditLead', { leadId })}
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={20}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
           <InfoRow icon="person" label="Full Name" value={lead.name} />
           <InfoRow icon="call" label="Phone" value={lead.phone} />
@@ -570,7 +567,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 3,
   },
-  cardbox:{
+  cardbox: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: spacing.md,
   },
@@ -620,7 +617,8 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: colors.white, borderTopLeftRadius: 24,
-    borderTopRightRadius: 24, padding: spacing.base, maxHeight: '70%',
+    borderTopRightRadius: 24, padding: spacing.base, maxHeight: '80%',
+    paddingBottom: spacing.xxl
   },
   modalTitle: {
     fontSize: typography.lg, fontWeight: typography.bold,

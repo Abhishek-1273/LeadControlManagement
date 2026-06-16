@@ -14,6 +14,7 @@ router.use(auth);
 
 router.get('/dashboard', ctrl.getDashboardStats);
 router.get('/followups/today', ctrl.getTodayFollowUps);
+router.patch('/followup/:followUpId/complete', ctrl.completeFollowUp);
 
 router.get('/', v.listLeadsRules, validate, ctrl.getMyLeads);
 router.get('/:id', v.idRule, validate, ctrl.getLeadById);
