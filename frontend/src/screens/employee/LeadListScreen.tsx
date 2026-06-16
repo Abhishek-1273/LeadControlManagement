@@ -85,7 +85,7 @@ const LeadCard = ({
             ) : null}
           </View>
           <View style={[styles.statusBadge,
-          { backgroundColor: statusColor + '20' }]}>
+            { backgroundColor: statusColor + '20' }]}>
             <Text style={[styles.statusText, { color: statusColor }]}>
               {lead.status}
             </Text>
@@ -152,7 +152,7 @@ const FilterModal = ({
             <Text style={filterStyles.label}>📍 City</Text>
             <TextInput
               style={filterStyles.input}
-              placeholder="City enter karo..."
+              placeholder="Enter city..."
               placeholderTextColor={colors.textLight}
               value={city}
               onChangeText={setCity}
@@ -162,7 +162,7 @@ const FilterModal = ({
             <Text style={filterStyles.label}>🚗 Car/Vehicle</Text>
             <TextInput
               style={filterStyles.input}
-              placeholder="Car model enter karo..."
+              placeholder="Enter car model..."
               placeholderTextColor={colors.textLight}
               value={car}
               onChangeText={setCar}
@@ -175,11 +175,11 @@ const FilterModal = ({
                 <TouchableOpacity
                   key={s}
                   style={[filterStyles.chip,
-                  source === s && filterStyles.chipActive]}
+                    source === s && filterStyles.chipActive]}
                   onPress={() => setSource(source === s ? '' : s)}
                 >
                   <Text style={[filterStyles.chipText,
-                  source === s && filterStyles.chipTextActive]}>
+                    source === s && filterStyles.chipTextActive]}>
                     {s}
                   </Text>
                 </TouchableOpacity>
@@ -329,7 +329,7 @@ export default function LeadListScreen() {
       Toast.show({
         type: 'info',
         text1: 'Marked Uninterested',
-        text2: `${lead.name} ko uninterested mark kiya`,
+        text2: `${lead.name} marked as uninterested`,
         visibilityTime: 2000,
       });
     } catch {
@@ -337,11 +337,11 @@ export default function LeadListScreen() {
     }
   };
 
-  // Pinned aur unpinned leads alag karo
+  // Separate pinned and unpinned leads
   const pinnedLeads = leads.filter((l) => l.isPinned);
   const unpinnedLeads = leads.filter((l) => !l.isPinned);
 
-  // Advanced filter apply karo
+  // Apply advanced filters
   const applyAdvancedFilter = (lead: Lead) => {
     if (advancedFilters.city &&
       !lead.city?.toLowerCase().includes(
@@ -372,7 +372,7 @@ export default function LeadListScreen() {
 
   return (
     <View style={styles.wrapper}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}> 
 
         {/* Header */}
         <View style={styles.header}>
@@ -381,7 +381,7 @@ export default function LeadListScreen() {
             {/* Filter Button */}
             <TouchableOpacity
               style={[styles.filterBtn,
-              hasActiveFilters && styles.filterBtnActive]}
+                hasActiveFilters && styles.filterBtnActive]}
               onPress={() => setShowFilterModal(true)}
             >
               <Ionicons
@@ -419,7 +419,7 @@ export default function LeadListScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.filtersContainer, { paddingBottom: insets.bottom + 80 }]}
+          contentContainerStyle={[styles.filtersContainer,  { paddingBottom: insets.bottom + 80 }]}
           style={styles.filtersScroll}
         >
           {STATUS_FILTERS.map((item) => (
@@ -448,7 +448,7 @@ export default function LeadListScreen() {
             ...(filteredPinned.length > 0
               ? [{ _id: 'pinned-header', isHeader: true, headerTitle: `📌 Pinned (${filteredPinned.length})` }]
               : []),
-            ...filteredPinned.map(l => ({ ...l, _listKey: `pinned-${l._id}`, isHeader: false })),
+            ...filteredPinned.map(l => ({ ...l, isHeader: false })),
 
             // Divider agar dono hain
             ...(filteredPinned.length > 0 && filteredUnpinned.length > 0
@@ -459,10 +459,10 @@ export default function LeadListScreen() {
             ...(filteredUnpinned.length > 0
               ? [{ _id: 'unpinned-header', isHeader: true, headerTitle: `All Leads (${filteredUnpinned.length})` }]
               : []),
-            ...filteredUnpinned.map(l => ({ ...l, _listKey: `unpinned-${l._id}`, isHeader: false })),
+            ...filteredUnpinned.map(l => ({ ...l, isHeader: false })),
           ] as any[]}
-          keyExtractor={(item) => item._listKey || item._id}
-          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={[styles.listContent,  { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -525,7 +525,7 @@ export default function LeadListScreen() {
 }
 
 const styles = StyleSheet.create({
-  wrapper: { backgroundColor: colors.background, flex: 1 },
+  wrapper: {backgroundColor: colors.background, flex: 1},
   safeArea: { flex: 1 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between',

@@ -41,7 +41,7 @@ exports.getMyLeads = asyncHandler(async (req, res) => {
 
   let filter = {};
 
-  // Employee sirf apne leads
+  // employee sees only their own leads
   if (role === 'employee') {
     filter.assignedTo = _id;
   }
@@ -277,7 +277,7 @@ exports.completeFollowUp = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Follow-up not found' });
   }
 
-  // Sirf apna follow-up complete kar sakta hai employee
+  // // Employee can only complete their own follow-up
   if (followUp.employee.toString() !== req.user._id.toString()) {
     return res.status(403).json({ message: 'Access denied' });
   }
@@ -308,4 +308,22 @@ exports.updateLeadInfo = asyncHandler(async (req, res) => {
 
   await lead.save();
   res.json({ message: 'Lead updated successfully', lead });
+});
+
+exports.deleteLead = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!Lead.base.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({ message: 'Lead not found' });
+  }
+  await Lead.findByIdAndDelete(id);
+  res.json({ message: 'Lead deleted' });
+});
+
+exports.bulkDeleteLeads = asyncHandler(async (req, res) => {
+  const days = parseInt(req.query.days) || 30;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+
+  const result = await Lead.deleteMany({ createdAt: { $lt: cutoff } });
+  res.json({ message: `${result.deletedCount} leads deleted`, deletedCount: result.deletedCount });
 });

@@ -46,6 +46,9 @@ export default function AdminProfileScreen() {
     return (
         <SafeAreaView style={styles.container} edges={['top']} >
             <ScrollView showsVerticalScrollIndicator={true}>
+
+                {/* Header */}
+                <Text style={styles.pageTitle}>Profile</Text>
                 {/* Profile */}
                 <View style={styles.profileSection}>
                     <View style={styles.avatar}>
@@ -77,12 +80,6 @@ export default function AdminProfileScreen() {
                     />
                     <View style={styles.divider} />
                     <MenuItem
-                        icon="notifications-outline"
-                        label="Notifications"
-                        onPress={() => navigation.navigate('Notifications')}
-                    />
-                    <View style={styles.divider} />
-                    <MenuItem
                         icon="paper-plane-outline"
                         label="Send Notification"
                         onPress={() => navigation.navigate('SendNotification')}
@@ -104,7 +101,15 @@ export default function AdminProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background},
+    container: { flex: 1, backgroundColor: colors.background },
+      pageTitle: {
+    fontSize: typography.xxl,
+    fontWeight: typography.bold,
+    color: colors.textPrimary,
+    paddingHorizontal: spacing.base,
+    paddingTop: spacing.base,
+    paddingBottom: spacing.sm,
+  },
     sectionTitle: {
         fontSize: typography.xs, fontWeight: typography.bold,
         color: colors.textSecondary, letterSpacing: 1,

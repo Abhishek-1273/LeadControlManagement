@@ -23,8 +23,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 const ALL_STATUSES: LeadStatus[] = [
   'New Lead', 'Contacted', 'Follow Up', 'Interested',
-  'Visitor', 'Booked', 'Closed', 'Uninterested',
-  'No Response', 'Wrong Number',
+  'Visitor', 'Booked','Uninterested',
+  'No Response',
 ];
 
 const InfoRow = ({ icon, label, value }: any) => (

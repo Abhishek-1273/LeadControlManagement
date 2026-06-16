@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { storage } from '../../utils/storage';
 import {
     View, Text, StyleSheet, ScrollView,
     TouchableOpacity, TextInput,
@@ -15,7 +16,7 @@ import { spacing } from '../../theme/spacing';
 
 export default function EditProfileScreen() {
     const navigation = useNavigation();
-    const { user, login, token } = useAuthStore();
+    const {user} = useAuthStore();
     const [name, setName] = useState(user?.name || '');
     const [phone, setPhone] = useState(user?.phone || '');
     const [isLoading, setIsLoading] = useState(false);
@@ -31,11 +32,11 @@ export default function EditProfileScreen() {
         }
         setIsLoading(true);
         try {
-            const res = await axiosInstance.patch('/auth/profile', {
-                name, phone,
-            });
-            // Update local user
-            await login({ ...user!, name, phone }, token!);
+            await axiosInstance.patch('/auth/profile', { name, phone });
+
+            const updatedUser = { ...user!, name, phone };
+            await storage.setUser(updatedUser);         
+            useAuthStore.setState({ user: updatedUser });
             Toast.show({
                 type: 'success',
                 text1: 'Profile Updated ✅',
@@ -75,7 +76,7 @@ export default function EditProfileScreen() {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}
+            <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 300 }]}
                 keyboardShouldPersistTaps="handled">
 
                 {/* Avatar */}

@@ -61,12 +61,12 @@ export default function DashboardScreen() {
       await completeFollowUp(followUpId);
       Toast.show({
         type: 'success',
-        text1: 'Done! ✅',
-        text2: 'Follow-up marked as complete',
+        text1: 'Completed! ✅',
+        text2: 'Follow-up marked as completed',
         visibilityTime: 1500,
       });
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed ❌', text2: 'Try again' });
+      Toast.show({ type: 'error', text1: 'Failed ❌', text2: 'Could not complete follow-up, try again' });
     } finally {
       setCompleting(null);
     }

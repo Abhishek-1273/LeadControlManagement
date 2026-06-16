@@ -96,7 +96,7 @@ export default function SendNotificationScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, {paddingBottom: 250}]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -335,6 +335,7 @@ const styles = StyleSheet.create({
   footer: {
     padding: spacing.base, backgroundColor: colors.white,
     borderTopWidth: 1, borderTopColor: colors.border,
+    paddingBottom: spacing.xxxl
   },
   sendBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

@@ -44,7 +44,7 @@ export default function AddNoteScreen() {
       Toast.show({
         type: 'success',
         text1: 'Note Saved ✅',
-        text2: 'Note successfully save ho gaya',
+        text2: 'Note saved successfully',
         visibilityTime: 1500,
       });
       navigation.goBack();
@@ -52,7 +52,7 @@ export default function AddNoteScreen() {
       Toast.show({
         type: 'error',
         text1: 'Save Failed ❌',
-        text2: 'Note save nahi hua, try again',
+        text2: 'Could not save note, please try again',
       });
     } finally {
       setIsLoading(false);

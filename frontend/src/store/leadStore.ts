@@ -19,7 +19,7 @@ interface DashboardStats {
 interface LeadStore {
   leads: Lead[];
   selectedLead: Lead | null;
-  followUps: any[];          // ✅ Today's follow-ups
+  followUps: any[];          // Today's follow-ups
   stats: DashboardStats;
   isLoading: boolean;
   error: string | null;
@@ -27,19 +27,18 @@ interface LeadStore {
   fetchLeads: (filters?: LeadFilters) => Promise<void>;
   fetchLeadById: (id: string) => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
-  fetchTodayFollowUps: () => Promise<void>;  // ✅
+  fetchTodayFollowUps: () => Promise<void>;  //
   updateStatus: (id: string, status: string) => Promise<void>;
   addNote: (id: string, note: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
-  updateLeadInfo: (id: string, data: any) => Promise<void>; // ✅
-  completeFollowUp: (followUpId: string) => Promise<void>;
+  updateLeadInfo: (id: string, data: any) => Promise<void>; //
   clearSelectedLead: () => void;
 }
 
 export const useLeadStore = create<LeadStore>((set, get) => ({
   leads: [],
   selectedLead: null,
-  followUps: [],             // ✅
+  followUps: [],             //
   stats: {
     totalLeads: 0,
     newToday: 0,
@@ -104,7 +103,7 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
     }
   },
 
-  // ✅ Today's follow-ups fetch
+  // Fetch today's follow-ups
   fetchTodayFollowUps: async () => {
     try {
       const res = await axiosInstance.get('/leads/followups/today');
@@ -158,7 +157,7 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
     }
   },
 
-  // ✅ Lead info update
+  // Update lead info
   updateLeadInfo: async (id, data) => {
     try {
       await axiosInstance.patch(`/leads/${id}/info`, data);
@@ -166,12 +165,6 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
     } catch (err: any) {
       throw err;
     }
-  },
-
-  completeFollowUp: async (followUpId) => {
-    await axiosInstance.patch(`/leads/followup/${followUpId}/complete`);
-    // Refresh today's follow-ups
-    await get().fetchTodayFollowUps();
   },
 
   clearSelectedLead: () => set({ selectedLead: null }),
