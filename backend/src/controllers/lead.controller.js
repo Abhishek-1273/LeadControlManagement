@@ -187,35 +187,75 @@ exports.createLead = asyncHandler(async (req, res) => {
   const primary = clip(primaryPhone, 20);
   const secondary = clip(secondaryPhone, 20);
 
-  // ── Duplicate check ──────────────────────────────────────────────────────
-  // Build an array of phone values to check. We check both `phone` (primary)
-  // and `secondaryPhone` fields in the DB against both numbers the user entered.
-  const phonesToCheck = [primary];
-  if (secondary) phonesToCheck.push(secondary);
+  exports.createLead = asyncHandler(async (req, res) => {
+    const { name, primaryPhone, secondaryPhone, email, city, source, campaign, car, assignedTo } = req.body;
 
-  const duplicate = await Lead.findOne({
-    $or: [
-      { phone:          { $in: phonesToCheck } },
-      { secondaryPhone: { $in: phonesToCheck } },
-    ],
+    const clip = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+
+    const primary = clip(primaryPhone, 20);
+    const secondary = clip(secondaryPhone, 20);
+
+    // ── Duplicate check ──────────────────────────────────────────────────────
+    // Only check non-empty phone values.
+    // We check the entered numbers against BOTH phone fields in every existing lead.
+    const phonesToCheck = [primary];
+    if (secondary) phonesToCheck.push(secondary);
+
+    const duplicate = await Lead.findOne({
+      $or: [
+        { phone: { $in: phonesToCheck } },
+        // Only match secondaryPhone if it's actually set (not empty string)
+        { secondaryPhone: { $in: phonesToCheck, $ne: '' } },
+      ],
+    });
+
+    if (duplicate) {
+      return res.status(409).json({
+        message: 'Lead already exists with this phone number.',
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Admin can assign to any employee; employee gets self-assigned
+    let assignee = null;
+    if (req.user.role === 'admin') {
+      assignee = assignedTo || null;   // admin passes employee _id, or null = unassigned
+    } else {
+      assignee = req.user._id;
+    }
+
+    const lead = await Lead.create({
+      name: clip(name, 120),
+      phone: primary,
+      secondaryPhone: secondary,
+      email: clip(email, 120),
+      city: clip(city, 80),
+      source: clip(source, 40) || 'Manual',
+      campaign: clip(campaign, 120),
+      car: clip(car, 80),
+      status: 'New Lead',
+      assignedTo: assignee,
+      timeline: [{
+        type: 'created',
+        description: `Lead created manually by ${req.user.name}`,
+      }],
+    });
+
+    res.status(201).json({ message: 'Lead created successfully', lead });
   });
 
-  if (duplicate) {
-    return res.status(409).json({
-      message: 'Lead already exists with this phone number.',
-    });
-  }
+  
   // ── End duplicate check ──────────────────────────────────────────────────
 
   const lead = await Lead.create({
-    name:           clip(name, 120),
-    phone:          primary,
+    name: clip(name, 120),
+    phone: primary,
     secondaryPhone: secondary,
-    email:          clip(email, 120),
-    city:           clip(city, 80),
-    source:         clip(source, 40) || 'Manual',
-    campaign:       clip(campaign, 120),
-    car:            clip(car, 80),
+    email: clip(email, 120),
+    city: clip(city, 80),
+    source: clip(source, 40) || 'Manual',
+    campaign: clip(campaign, 120),
+    car: clip(car, 80),
     status: 'New Lead',
     assignedTo: req.user.role === 'employee' ? req.user._id : null,
     timeline: [{

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "whatsflow",
-    "slug": "whatsflow",
+    "name": "LeadManagementApp",
+    "slug": "LeadManagementApp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -21,7 +21,8 @@
         "backgroundColor": "#ffffff"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.abhishek_dev.coder.LeadManagementApp"
+      "package": "whatsflow.velta",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -29,7 +30,14 @@
     "plugins": [
       "@react-native-community/datetimepicker",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2cc18a"
+        }
+      ]
     ],
     "extra": {
       "eas": {

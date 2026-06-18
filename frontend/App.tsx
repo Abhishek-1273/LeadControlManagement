@@ -1,15 +1,16 @@
-// App.tsx
-
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PaperProvider } from 'react-native-paper';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';  // ← BaseToast add karo agar use kar rahe ho
-import { View, Text } from 'react-native';          // ← custom toast ke liye
-import { Ionicons } from '@expo/vector-icons';       // ← custom toast ke liye
+import Toast from 'react-native-toast-message';
+import { View, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+import React from 'react';
 import AppNavigator from './src/navigation/AppNavigator';
 import { colors } from './src/theme/colors';
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,7 +21,6 @@ const queryClient = new QueryClient({
   },
 });
 
-// ← Yahan define karo
 const toastConfig = {
   success: ({ text1, text2 }: any) => (
     <View style={{
@@ -82,17 +82,42 @@ const toastConfig = {
 };
 
 export default function App() {
+  const navigationRef = React.useRef<any>(null);
+
+  React.useEffect(() => {
+    // ── Notification handler — app open ho tab bhi alert dikhao
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,    
+        shouldPlaySound: true,      
+        shouldSetBadge: true,     
+        shouldShowBanner: true,    
+        shouldShowList: true,       
+      }),
+    });
+
+    // App band ho aur notification tap karo → screen pe navigate karo
+    const responseSub = Notifications.addNotificationResponseReceivedListener(response => {
+      const screen = response.notification.request.content.data?.screen;
+      if (screen && navigationRef.current?.isReady()) {
+        navigationRef.current.navigate(screen);
+      }
+    });
+
+    return () => responseSub.remove();
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <PaperProvider>
             <StatusBar style="auto" backgroundColor={colors.white} />
-            <AppNavigator />
-            <Toast 
-              config={toastConfig}   // ← config pass karo
-              position="bottom" 
-              bottomOffset={80} 
+            <AppNavigator navigationRef={navigationRef} />
+            <Toast
+              config={toastConfig}
+              position="bottom"
+              bottomOffset={80}
             />
           </PaperProvider>
         </QueryClientProvider>

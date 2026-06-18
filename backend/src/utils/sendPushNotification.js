@@ -1,15 +1,12 @@
-const admin = require('../config/firebase');
+const { getMessaging } = require('../config/firebase');
 
 const sendPushNotification = async (pushToken, title, body, data = {}) => {
   if (!pushToken) return;
 
   try {
-    await admin.messaging().send({
+    await getMessaging().send({
       token: pushToken,
-      notification: {
-        title,
-        body,
-      },
+      notification: { title, body },
       data,
       android: {
         priority: 'high',

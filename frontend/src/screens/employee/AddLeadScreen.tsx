@@ -286,20 +286,10 @@ export default function AddLeadScreen() {
               optional
               maxLength={80}
             />
-
-            <Field
-              label="Campaign"
-              icon="megaphone-outline"
-              value={campaign}
-              onChangeText={setCampaign}
-              placeholder="e.g. Diwali Offer"
-              optional
-              maxLength={120}
-            />
           </View>
 
           {/* ── Submit ── */}
-          <TouchableOpacity
+          <TouchableOpacity 
             style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
             onPress={handleSubmit}
             disabled={isSubmitting}

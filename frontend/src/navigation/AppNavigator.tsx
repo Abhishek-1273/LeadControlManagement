@@ -7,7 +7,8 @@ import EmployeeNavigator from './EmployeeNavigator';
 import AdminNavigator from './AdminNavigator';
 import { colors } from '../theme/colors';
 
-export default function AppNavigator() {
+// ← navigationRef prop add kiya
+export default function AppNavigator({ navigationRef }: { navigationRef: React.RefObject<any> }) {
   const { isAuthenticated, isLoading, loadStoredAuth, user } = useAuthStore();
 
   useEffect(() => {
@@ -23,11 +24,11 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       {!isAuthenticated ? (
         <AuthNavigator />
       ) : user?.role === 'admin' ? (
-        <AdminNavigator />  
+        <AdminNavigator />
       ) : (
         <EmployeeNavigator />
       )}

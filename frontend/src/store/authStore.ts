@@ -3,6 +3,7 @@ import { User, AuthState } from '../types/auth.types';
 import { storage } from '../utils/storage';
 import axiosInstance from '../api/axiosInstance';
 import { isTokenExpired } from '../utils/jwt';
+import { registerPushToken } from '../utils/registerPushToken';
 
 interface AuthStore extends AuthState {
   login: (email: string, password: string) => Promise<void>;
@@ -25,10 +26,23 @@ export const useAuthStore = create<AuthStore>((set) => ({
         password,
       });
       const { token, user } = response.data;
-      console.log('LOGIN USER ROLE:', user?.role); // web console mein dekho
+      console.log('LOGIN USER ROLE:', user?.role);
       await storage.setToken(token);
       await storage.setUser(user);
       set({ user, token, isAuthenticated: true, isLoading: false });
+
+      // ← Push token register karo login ke baad
+      try {
+        const pushToken = await registerPushToken();
+        if (pushToken) {
+          await axiosInstance.post('/auth/push-token', { pushToken });
+          console.log('✅ Push token registered');
+        }
+      } catch (pushErr) {
+        // Push token fail hone se login affect na ho
+        console.log('Push token registration failed:', pushErr);
+      }
+
     } catch (error: any) {
       set({ isLoading: false });
       throw error;
@@ -47,11 +61,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const token = await storage.getToken();
       const user = await storage.getUser();
 
-      // Restore only if token exists AND is not expired
       if (token && user && !isTokenExpired(token)) {
         set({ token, user, isAuthenticated: true, isLoading: false });
       } else {
-        // Expired/invalid -> clean up so the user lands on login
         await storage.clearAll();
         set({ user: null, token: null, isAuthenticated: false, isLoading: false });
       }

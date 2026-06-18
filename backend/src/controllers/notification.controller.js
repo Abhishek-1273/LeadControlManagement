@@ -21,7 +21,7 @@ exports.sendNotification = asyncHandler(async (req, res) => {
   // Broadcast to everyone (saare active users, admin ko chhod ke)
   if (target === 'all') {
     const users = await User.find({ isActive: true, _id: { $ne: req.user._id } })
-      .select('_id');
+      .select('_id pushToken');  // ← pushToken bhi select karo
 
     if (!users.length) {
       return res.status(400).json({ message: 'No recipients found' });
@@ -37,6 +37,13 @@ exports.sendNotification = asyncHandler(async (req, res) => {
     }));
     await Notification.insertMany(docs);
 
+    // Push notifications sabko bhejo (ek fail ho toh baki rok mat)
+    await Promise.allSettled(
+      users
+        .filter((u) => u.pushToken)
+        .map((u) => sendPushNotification(u.pushToken, title.trim(), message.trim()))
+    );
+
     return res.status(201).json({
       message: `Notification sent to ${docs.length} user(s)`,
       count: docs.length,
@@ -44,7 +51,7 @@ exports.sendNotification = asyncHandler(async (req, res) => {
   }
 
   // Single user
-  const recipient = await User.findById(target).select('_id isActive');
+  const recipient = await User.findById(target).select('_id isActive pushToken'); // ← pushToken
   if (!recipient) {
     return res.status(404).json({ message: 'User not found' });
   }
@@ -57,6 +64,11 @@ exports.sendNotification = asyncHandler(async (req, res) => {
     createdBy: req.user._id,
     broadcast: false,
   });
+
+  // Push notification single user ko
+  if (recipient.pushToken) {
+    await sendPushNotification(recipient.pushToken, title.trim(), message.trim());
+  }
 
   res.status(201).json({ message: 'Notification sent', count: 1 });
 });
@@ -117,25 +129,3 @@ exports.deleteNotification = asyncHandler(async (req, res) => {
   }
   res.json({ message: 'Notification deleted' });
 });
-
-
-exports.sendNotification = async (req, res) => {
-  try {
-    const { employeeId, title, message } = req.body;
-
-    // DB mein save karo (existing code hoga tumhara)
-    await Notification.create({
-      user: employeeId,
-      title,
-      message,
-    });
-
-    // Push notification bhi bhejo
-    const employee = await User.findById(employeeId);
-    await sendPushNotification(employee.pushToken, title, message);
-
-    res.json({ message: 'Notification sent successfully' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};

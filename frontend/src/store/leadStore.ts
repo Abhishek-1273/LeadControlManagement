@@ -190,3 +190,15 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
 
   clearSelectedLead: () => set({ selectedLead: null }),
 }));
+
+export interface CreateLeadPayload {
+  name: string;
+  primaryPhone: string;
+  secondaryPhone?: string;
+  email?: string;
+  city?: string;
+  source?: string;
+  campaign?: string;
+  car?: string;
+  assignedTo?: string; 
+}

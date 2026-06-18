@@ -91,5 +91,8 @@ module.exports = {
     body('source').optional().isString().trim().isLength({ max: 40 }),
     body('campaign').optional().isString().trim().isLength({ max: 120 }),
     body('car').optional().isString().trim().isLength({ max: 80 }),
+    body('assignedTo')
+      .optional({ checkFalsy: true })
+      .isMongoId().withMessage('Invalid assignedTo employee ID'),
   ],
 };
