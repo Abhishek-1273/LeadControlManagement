@@ -1,11 +1,23 @@
-**/node_modules
-**/.env
-**/.expo
-**/coverage
-**/dist
-**/build
+# Dependencies
+node_modules/
 
-.DS_Store
-Thumbs.db
+# Environment
+.env
+.env.*
+
+# Firebase
+serviceAccountKey.json
+google-services.json
+
+# Expo / Build
+.expo/
+dist/
+build/
+
+# IDE
 .vscode/
 .idea/
+
+# OS
+Thumbs.db
+.DS_Store
