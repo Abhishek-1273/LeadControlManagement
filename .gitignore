@@ -1,23 +1,28 @@
 # Dependencies
 node_modules/
 
-# Environment
+# Environment files
 .env
 .env.*
 
-# Firebase
+# Firebase Secrets
 serviceAccountKey.json
+backend/serviceAccountKey.json
 google-services.json
+GoogleService-Info.plist
 
-# Expo / Build
+# Expo
 .expo/
 dist/
 build/
+
+# Logs
+*.log
 
 # IDE
 .vscode/
 .idea/
 
-# OS
+# OS Files
 Thumbs.db
 .DS_Store
