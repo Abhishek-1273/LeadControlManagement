@@ -35,7 +35,6 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
 
 // --- Body parsing with size caps ---
 app.use(express.json({ limit: '100kb' }));
@@ -47,12 +46,13 @@ app.use('/api/leads', require('./routes/lead.routes'));
 app.use('/api/admin', require('./routes/admin.routes'));
 app.use('/api/notifications', require('./routes/notification.routes'));
 
-app.use(notFound);      // unmatched routes -> 404
-app.use(errorHandler);  // central error handler -> safe responses
 
 app.get('/', (req, res) => {
   res.json({ status: '🚀 Lead Backend Running!' });
 });
+
+app.use(notFound);      // unmatched routes -> 404
+app.use(errorHandler);  // central error handler -> safe responses
 
 app.listen(process.env.PORT || 5000, () => {
   console.log(`🚀 Server on port ${process.env.PORT || 5000}`);

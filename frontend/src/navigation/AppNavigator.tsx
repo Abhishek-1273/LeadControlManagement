@@ -27,9 +27,9 @@ export default function AppNavigator() {
       {!isAuthenticated ? (
         <AuthNavigator />
       ) : user?.role === 'admin' ? (
-        <AdminNavigator />  // ✅ Admin screens
+        <AdminNavigator />  
       ) : (
-        <EmployeeNavigator /> // ✅ Employee screens
+        <EmployeeNavigator />
       )}
     </NavigationContainer>
   );

@@ -21,4 +21,15 @@ router.patch('/profile', auth, async (req, res) => {
     }
 });
 
+// Push token save karo
+router.post('/push-token', auth, async (req, res) => {
+  try {
+    const { pushToken } = req.body;
+    await User.findByIdAndUpdate(req.user._id, { pushToken });
+    res.json({ message: 'Push token saved' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

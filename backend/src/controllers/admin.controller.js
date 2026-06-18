@@ -133,6 +133,7 @@ exports.toggleEmployeeStatus = async (req, res) => {
   try {
     const employee = await User.findById(req.params.id);
     employee.isActive = !employee.isActive;
+    if (!employee) return res.status(404).json({ message: 'Employee not found' });
     await employee.save();
     res.json({
       message: `Employee ${employee.isActive ? 'activated' : 'deactivated'}`,

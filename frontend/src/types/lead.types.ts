@@ -12,6 +12,7 @@ export interface Lead {
   _id: string;
   name: string;
   phone: string;
+  secondaryPhone?: string;
   email?: string;
   city?: string;
   source: string;

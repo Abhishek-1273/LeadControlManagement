@@ -17,6 +17,7 @@ const timelineSchema = new mongoose.Schema({
 const leadSchema = new mongoose.Schema({
   name: { type: String, required: true },
   phone: { type: String, required: true },
+  secondaryPhone: { type: String, default: '' },
   email: { type: String },
   city: { type: String },
   source: { type: String, default: 'Unknown' },
@@ -29,8 +30,8 @@ const leadSchema = new mongoose.Schema({
     type: String,
     enum: [
       'New Lead', 'Contacted', 'Follow Up',
-      'Interested', 'Visitor', 'Booked', 'Closed',
-      'Uninterested', 'No Response', 'Wrong Number'
+      'Interested', 'Visitor', 'Booked',
+      'Uninterested', 'No Response'
     ],
     default: 'New Lead',
   },

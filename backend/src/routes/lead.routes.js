@@ -18,6 +18,7 @@ router.patch('/followup/:followUpId/complete', ctrl.completeFollowUp);
 router.delete('/bulk', ctrl.bulkDeleteLeads);
 
 router.get('/', v.listLeadsRules, validate, ctrl.getMyLeads);
+router.post('/', v.createLeadRules, validate, ctrl.createLead);
 router.get('/:id', v.idRule, validate, ctrl.getLeadById);
 
 router.patch('/:id/status', v.updateStatusRules, validate, ctrl.updateStatus);

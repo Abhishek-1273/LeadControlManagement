@@ -35,9 +35,8 @@ function TabNavigator() {
         tabBarStyle: {
           backgroundColor: colors.white,
           borderTopColor: colors.border,
-          height: 60 + insets.bottom, // ✅ 3-button nav → insets.bottom ~48, gesture → ~0
-          paddingBottom: insets.bottom + 4, // ✅ icons system buttons ke upar rahenge
-          paddingTop: 8,
+          height: 60 + insets.bottom, 
+          paddingBottom: insets.bottom + 4,
           elevation: 8,
         },
         tabBarIcon: ({ focused, color, size }) => {

@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
     role: { type: String, enum: ['admin', 'employee'], default: 'employee' },
     phone: { type: String },
     isActive: { type: Boolean, default: true },
+    pushToken: { type: String, default: null },
 }, { timestamps: true });
 
 // Password save hone se pehle hash karo

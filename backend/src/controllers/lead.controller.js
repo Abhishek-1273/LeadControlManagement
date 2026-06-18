@@ -178,7 +178,56 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
   });
 });
 
-// n8n Webhook
+// Create Lead (Employee / Admin manual creation)
+exports.createLead = asyncHandler(async (req, res) => {
+  const { name, primaryPhone, secondaryPhone, email, city, source, campaign, car } = req.body;
+
+  const clip = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+
+  const primary = clip(primaryPhone, 20);
+  const secondary = clip(secondaryPhone, 20);
+
+  // ── Duplicate check ──────────────────────────────────────────────────────
+  // Build an array of phone values to check. We check both `phone` (primary)
+  // and `secondaryPhone` fields in the DB against both numbers the user entered.
+  const phonesToCheck = [primary];
+  if (secondary) phonesToCheck.push(secondary);
+
+  const duplicate = await Lead.findOne({
+    $or: [
+      { phone:          { $in: phonesToCheck } },
+      { secondaryPhone: { $in: phonesToCheck } },
+    ],
+  });
+
+  if (duplicate) {
+    return res.status(409).json({
+      message: 'Lead already exists with this phone number.',
+    });
+  }
+  // ── End duplicate check ──────────────────────────────────────────────────
+
+  const lead = await Lead.create({
+    name:           clip(name, 120),
+    phone:          primary,
+    secondaryPhone: secondary,
+    email:          clip(email, 120),
+    city:           clip(city, 80),
+    source:         clip(source, 40) || 'Manual',
+    campaign:       clip(campaign, 120),
+    car:            clip(car, 80),
+    status: 'New Lead',
+    assignedTo: req.user.role === 'employee' ? req.user._id : null,
+    timeline: [{
+      type: 'created',
+      description: `Lead created manually by ${req.user.name}`,
+    }],
+  });
+
+  res.status(201).json({ message: 'Lead created successfully', lead });
+});
+
+
 exports.webhookLead = asyncHandler(async (req, res) => {
   const { name, phone, email, city, source, campaign, message, car } = req.body;
 

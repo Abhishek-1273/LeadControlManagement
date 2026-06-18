@@ -11,8 +11,6 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import Toast from 'react-native-toast-message';
-import { ActivityIndicator } from 'react-native';
 import { useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -38,9 +36,8 @@ export default function DashboardScreen() {
   const navigation = useNavigation<any>();
   const { height } = useWindowDimensions();
   const { user } = useAuthStore();
-  const { stats, fetchDashboardStats, followUps, fetchTodayFollowUps, completeFollowUp } = useLeadStore();
+  const { stats, fetchDashboardStats, followUps, fetchTodayFollowUps } = useLeadStore();
   const [refreshing, setRefreshing] = React.useState(false);
-  const [completing, setCompleting] = React.useState<string | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -53,23 +50,6 @@ export default function DashboardScreen() {
     setRefreshing(true);
     await Promise.all([fetchDashboardStats(), fetchTodayFollowUps()]);
     setRefreshing(false);
-  };
-
-  const handleComplete = async (followUpId: string) => {
-    setCompleting(followUpId);
-    try {
-      await completeFollowUp(followUpId);
-      Toast.show({
-        type: 'success',
-        text1: 'Completed! ✅',
-        text2: 'Follow-up marked as completed',
-        visibilityTime: 1500,
-      });
-    } catch {
-      Toast.show({ type: 'error', text1: 'Failed ❌', text2: 'Could not complete follow-up, try again' });
-    } finally {
-      setCompleting(null);
-    }
   };
 
   const getGreeting = () => {
@@ -230,7 +210,10 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   key={index}
                   style={styles.followUpItem}
-                  onPress={() => navigation.navigate('LeadDetail', { leadId: fu.lead?._id })}
+                  onPress={() => navigation.navigate('Leads', {
+                    screen: 'LeadDetail',
+                    params: { leadId: fu.lead?._id }
+                  })}
                 >
                   <View style={styles.followUpLeft}>
                     <View style={styles.timeCircle}>
@@ -243,17 +226,11 @@ export default function DashboardScreen() {
                       <Text style={styles.followUpTime}>{fu.time}</Text>
                     </View>
                   </View>
-                  <TouchableOpacity
-                    style={styles.completeBtn}
-                    onPress={() => handleComplete(fu._id)}
-                    disabled={completing === fu._id}
-                  >
-                    {completing === fu._id ? (
-                      <ActivityIndicator size={14} color={colors.white} />
-                    ) : (
-                      <Ionicons name="checkmark" size={16} color={colors.white} />
-                    )}
-                  </TouchableOpacity>
+                  {fu.notes ? (
+                    <Text style={styles.followUpNote} numberOfLines={1}>
+                      {fu.notes}
+                    </Text>
+                  ) : null}
                 </TouchableOpacity>
               ))}
             </View>
@@ -433,11 +410,6 @@ const styles = StyleSheet.create({
     fontSize: typography.base,
     fontWeight: typography.medium,
     color: colors.textSecondary,
-  },
-  completeBtn: {
-    backgroundColor: colors.primary,
-    width: 32, height: 32, borderRadius: 16,
-    justifyContent: 'center', alignItems: 'center',
   },
   emptySubText: {
     fontSize: typography.sm,

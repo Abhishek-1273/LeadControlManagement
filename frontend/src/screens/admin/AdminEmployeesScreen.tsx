@@ -171,7 +171,7 @@ export default function AdminEmployeesScreen() {
 
   return (
     <View style={styles.wrapper}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
 
         {/* Header */}
         <View style={styles.header}>

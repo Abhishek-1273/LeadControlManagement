@@ -146,24 +146,19 @@ export default function LeadDetailScreen() {
   };
 
   const handlePin = async () => {
-    try {
-      await togglePin(leadId);
-      Toast.show({
-        type: 'success',
-        text1: lead.isPinned ? 'Unpinned 📌' : 'Pinned 📌',
-        text2: lead.isPinned
-          ? 'Lead removed from pinned'
-          : 'Lead added to pinned',
-        visibilityTime: 1500,
-      });
-    } catch {
-      Toast.show({
-        type: 'error',
-        text1: 'Failed ❌',
-        text2: 'Could not update pin status',
-      });
-    }
-  };
+  const wasPinned = lead.isPinned; 
+  try {
+    await togglePin(leadId);
+    Toast.show({
+      type: 'success',
+      text1: wasPinned ? 'Unpinned' : 'Pinned 📌',
+      text2: wasPinned ? 'Lead removed from pinned' : 'Lead added to pinned',
+      visibilityTime: 1500,
+    });
+  } catch {
+    Toast.show({ type: 'error', text1: 'Failed ❌', text2: 'Could not update pin status' });
+  }
+};
 
   const handleVisitorDate = async (selectedDate: Date) => {
     try {

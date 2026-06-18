@@ -1,11 +1,11 @@
 const Notification = require('../models/Notification.model');
 const User = require('../models/User.model');
 const asyncHandler = require('../utils/asyncHandler');
+const sendPushNotification = require('../utils/sendPushNotification');
 
 const VALID_TYPES = ['info', 'success', 'warning', 'alert'];
 
 // --- ADMIN: Send notification to one user OR all users ---
-// body: { title, message, type?, target: 'all' | <userId> }
 exports.sendNotification = asyncHandler(async (req, res) => {
   const { title, message, target } = req.body;
   let { type } = req.body;
@@ -117,3 +117,25 @@ exports.deleteNotification = asyncHandler(async (req, res) => {
   }
   res.json({ message: 'Notification deleted' });
 });
+
+
+exports.sendNotification = async (req, res) => {
+  try {
+    const { employeeId, title, message } = req.body;
+
+    // DB mein save karo (existing code hoga tumhara)
+    await Notification.create({
+      user: employeeId,
+      title,
+      message,
+    });
+
+    // Push notification bhi bhejo
+    const employee = await User.findById(employeeId);
+    await sendPushNotification(employee.pushToken, title, message);
+
+    res.json({ message: 'Notification sent successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

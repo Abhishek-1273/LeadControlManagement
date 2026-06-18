@@ -2,6 +2,17 @@ import { create } from 'zustand';
 import { Lead, LeadFilters } from '../types/lead.types';
 import axiosInstance from '../api/axiosInstance';
 
+export interface CreateLeadPayload {
+  name: string;
+  primaryPhone: string;
+  secondaryPhone?: string;
+  email?: string;
+  city?: string;
+  source?: string;
+  campaign?: string;
+  car?: string;
+}
+
 interface DashboardStats {
   totalLeads: number;
   newToday: number;
@@ -19,7 +30,7 @@ interface DashboardStats {
 interface LeadStore {
   leads: Lead[];
   selectedLead: Lead | null;
-  followUps: any[];          // Today's follow-ups
+  followUps: any[];          // ✅ Today's follow-ups
   stats: DashboardStats;
   isLoading: boolean;
   error: string | null;
@@ -27,18 +38,19 @@ interface LeadStore {
   fetchLeads: (filters?: LeadFilters) => Promise<void>;
   fetchLeadById: (id: string) => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
-  fetchTodayFollowUps: () => Promise<void>;  //
+  fetchTodayFollowUps: () => Promise<void>;  // ✅
+  createLead: (data: CreateLeadPayload) => Promise<void>;
   updateStatus: (id: string, status: string) => Promise<void>;
   addNote: (id: string, note: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
-  updateLeadInfo: (id: string, data: any) => Promise<void>; //
+  updateLeadInfo: (id: string, data: any) => Promise<void>; // ✅
   clearSelectedLead: () => void;
 }
 
 export const useLeadStore = create<LeadStore>((set, get) => ({
   leads: [],
   selectedLead: null,
-  followUps: [],             //
+  followUps: [],             // ✅
   stats: {
     totalLeads: 0,
     newToday: 0,
@@ -70,12 +82,11 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
   },
 
   fetchLeadById: async (id) => {
-    set({ isLoading: true, selectedLead: null });
+    set({ isLoading: true });
     try {
       const res = await axiosInstance.get(`/leads/${id}`);
       set({ selectedLead: res.data, isLoading: false });
     } catch (err: any) {
-      console.error('fetchLeadById error:', err.message);
       set({ error: err.message, isLoading: false });
     }
   },
@@ -103,7 +114,14 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
     }
   },
 
-  // Fetch today's follow-ups
+  // ✅ Manual lead creation
+  createLead: async (data: CreateLeadPayload) => {
+    const res = await axiosInstance.post('/leads', data);
+    // Prepend the newly created lead to the local list
+    set((state) => ({ leads: [res.data.lead, ...state.leads] }));
+  },
+
+  // ✅ Today's follow-ups fetch
   fetchTodayFollowUps: async () => {
     try {
       const res = await axiosInstance.get('/leads/followups/today');
@@ -139,6 +157,7 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
     }
   },
 
+  // ✅ FIXED VERSION
   togglePin: async (id) => {
     try {
       const res = await axiosInstance.patch(`/leads/${id}/pin`);
@@ -146,18 +165,20 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
         l._id === id ? { ...l, isPinned: res.data.isPinned } : l
       );
       const selectedLead = get().selectedLead;
-      if (selectedLead?._id === id) {
-        set({
-          selectedLead: { ...selectedLead, isPinned: res.data.isPinned }
-        });
-      }
-      set({ leads });
+
+      // Combine both updates in one set() call
+      set({
+        leads,
+        selectedLead: selectedLead?._id === id
+          ? { ...selectedLead, isPinned: res.data.isPinned }
+          : selectedLead
+      });
     } catch (err: any) {
       throw err;
     }
   },
 
-  // Update lead info
+  // ✅ Lead info update
   updateLeadInfo: async (id, data) => {
     try {
       await axiosInstance.patch(`/leads/${id}/info`, data);

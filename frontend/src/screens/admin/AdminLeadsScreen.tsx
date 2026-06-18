@@ -21,10 +21,8 @@ const STATUS_COLORS: Record<string, string> = {
   'Interested': '#10B981',
   'Visitor': '#06B6D4',
   'Booked': '#059669',
-  'Closed': '#6B7280',
   'Uninterested': '#EF4444',
   'No Response': '#9CA3AF',
-  'Wrong Number': '#F97316',
 };
 
 const STATUS_FILTERS = [

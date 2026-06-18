@@ -16,6 +16,7 @@ export const endpoints = {
 
   // Leads
   leads: '/leads',
+  createLead: '/leads',
   leadDetail: (id: string) => `/leads/${id}`,
   leadStatus: (id: string) => `/leads/${id}/status`,
   leadNotes: (id: string) => `/leads/${id}/notes`,
