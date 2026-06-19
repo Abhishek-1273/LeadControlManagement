@@ -157,7 +157,7 @@ export default function BookAppointmentScreen() {
     }
     setLoading(true);
     try {
-      await axiosInstance.post('/admin/appointments', {
+      await axiosInstance.post('/leads/appointments', {
         leadId,
         appointmentDate: formatDate(selectedDate),
         appointmentTime: formatTime(selectedTime),

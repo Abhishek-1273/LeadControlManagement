@@ -216,40 +216,8 @@ exports.getAppointmentById = async (req, res) => {
   }
 };
 
-// Create appointment (when employee marks lead as Booked)
-exports.createAppointment = async (req, res) => {
-  const { leadId, appointmentDate, appointmentTime, description } = req.body;
-  try {
-    const lead = await Lead.findById(leadId);
-    if (!lead) return res.status(404).json({ message: 'Lead not found' });
-
-    // Set lead status to Booked
-    const oldStatus = lead.status;
-    lead.status = 'Booked';
-    lead.timeline.push({
-      type: 'appointment_set',
-      description: `Appointment booked for ${appointmentDate} at ${appointmentTime}`,
-    });
-    await lead.save();
-
-    const appointment = await Appointment.create({
-      lead: leadId,
-      appointmentDate,
-      appointmentTime,
-      description: description || '',
-      createdBy: req.user._id,
-    });
-
-    const populated = await appointment.populate([
-      { path: 'lead', select: 'name phone status assignedTo', populate: { path: 'assignedTo', select: 'name' } },
-      { path: 'createdBy', select: 'name' },
-    ]);
-
-    res.status(201).json({ message: 'Appointment created successfully', appointment: populated });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
+// NOTE: createAppointment moved to src/controllers/appointment.controller.js
+// so employees (not just admins) can create appointments for their own leads.
 
 // Update appointment
 exports.updateAppointment = async (req, res) => {

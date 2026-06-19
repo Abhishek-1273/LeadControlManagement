@@ -20,9 +20,11 @@ router.patch('/employees/:id/toggle', ctrl.toggleEmployeeStatus);
 router.get('/leads', ctrl.getAllLeads);
 router.patch('/leads/:id/assign', ctrl.assignLead);
 
-// Appointment routes
+// Appointment routes (view/edit/delete = admin only)
+// NOTE: creating an appointment is now handled by employees too,
+// via POST /api/leads/appointments (see lead.routes.js) — removed here
+// to avoid the adminOnly gate blocking employee bookings.
 router.get('/appointments', ctrl.getAppointments);
-router.post('/appointments', ctrl.createAppointment);
 router.get('/appointments/:id', ctrl.getAppointmentById);
 router.patch('/appointments/:id', ctrl.updateAppointment);
 router.delete('/appointments/:id', ctrl.deleteAppointment);

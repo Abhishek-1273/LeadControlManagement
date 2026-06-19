@@ -5,6 +5,7 @@ const { webhookLimiter } = require('../middleware/rateLimiters');
 const validate    = require('../middleware/validate');
 const v           = require('../middleware/leadValidators');
 const ctrl        = require('../controllers/lead.controller');
+const appointmentCtrl = require('../controllers/appointment.controller');
 
 // ── Public webhook (n8n / external) ─────────────────────────────────────────
 router.post('/webhook', webhookLimiter, webhookAuth, ctrl.webhookLead);
@@ -17,6 +18,9 @@ router.get('/dashboard',            ctrl.getDashboardStats);
 router.get('/followups/today',      ctrl.getTodayFollowUps);
 router.patch('/followup/:followUpId/complete', ctrl.completeFollowUp);
 router.delete('/bulk',              ctrl.bulkDeleteLeads);
+
+// Appointment — employee can book for their own lead (no adminOnly here)
+router.post('/appointments', appointmentCtrl.createAppointment);
 
 // Lead CRUD
 router.get ('/',    v.listLeadsRules,   validate, ctrl.getMyLeads);
