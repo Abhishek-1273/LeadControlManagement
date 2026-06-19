@@ -71,14 +71,14 @@ export default function AdminDashboardScreen() {
   };
 
   const statusChartData = {
-    labels: ['New', 'Interest', 'Visitor', 'Booked', 'Unint.'],
+    labels: ['Hot', 'Warm', 'Cold', 'Follow Up', 'Booked'],
     datasets: [{
       data: [
-        stats.newLeads || 0,
-        stats.interested || 0,
-        stats.visitor || 0,
+        stats.hot || 0,
+        stats.warm || 0,
+        stats.cold || 0,
+        stats.followUp || 0,
         stats.booked || 0,
-        stats.uninterested || 0,
       ]
     }]
   };
@@ -136,12 +136,12 @@ export default function AdminDashboardScreen() {
 
         {/* Stats Row 2 */}
         <View style={styles.statsRow}>
-          <StatCard icon="thumbs-up" label="Interested" value={stats.interested}
-            bgColor="#F0FFF4" iconColor="#10B981" />
-          <StatCard icon="walk" label="Visitors" value={stats.visitor}
-            bgColor="#F0F9FF" iconColor="#0EA5E9" />
+          <StatCard icon="flame" label="Hot" value={stats.hot}
+            bgColor="#FEF2F2" iconColor="#EF4444" />
+          <StatCard icon="sunny" label="Warm" value={stats.warm}
+            bgColor="#FFFBEB" iconColor="#F59E0B" />
           <StatCard icon="checkmark-circle" label="Booked" value={stats.booked}
-            bgColor="#F5F3FF" iconColor="#8B5CF6" />
+            bgColor="#F0FFF4" iconColor="#059669" />
         </View>
 
         {/* Bar Chart */}

@@ -111,18 +111,18 @@ export default function DashboardScreen() {
         {/* Row 2 */}
         <View style={styles.statsRow}>
           <StatCard
-            icon="thumbs-up"
-            label="Interested"
-            value={stats.interested}
-            bgColor="#F0FFF4"
-            iconColor="#10B981"
+            icon="flame"
+            label="Hot"
+            value={stats.hot}
+            bgColor="#FEF2F2"
+            iconColor="#EF4444"
           />
           <StatCard
             icon="checkmark-circle"
             label="Booked"
             value={stats.booked}
             bgColor="#F0F9FF"
-            iconColor="#0EA5E9"
+            iconColor="#059669"
           />
           <StatCard
             icon="time"
@@ -152,14 +152,11 @@ export default function DashboardScreen() {
           ) : (
             <View style={styles.statusGrid}>
               {[
-                { label: 'New Lead', count: stats.newToday, color: '#3B82F6' },
-                { label: 'Contacted', count: stats.contacted, color: '#8B5CF6' },
-                { label: 'Follow Up', count: stats.followUp, color: '#F59E0B' },
-                { label: 'Interested', count: stats.interested, color: '#10B981' },
-                { label: 'Visitor', count: stats.visitor, color: '#06B6D4' },
-                { label: 'Booked', count: stats.booked, color: '#059669' },
-                { label: 'Uninterested', count: stats.uninterested, color: '#EF4444' },
-                { label: 'No Response', count: stats.noResponse, color: '#9CA3AF' },
+                { label: '🔥 Hot', count: stats.hot, color: '#EF4444' },
+                { label: '🌤 Warm', count: stats.warm, color: '#F59E0B' },
+                { label: '❄️ Cold', count: stats.cold, color: '#3B82F6' },
+                { label: '📅 Follow Up', count: stats.followUp, color: '#8B5CF6' },
+                { label: '✅ Booked', count: stats.booked, color: '#059669' },
               ].map((item) => (
                 <View key={item.label} style={styles.statusItem}>
                   <View style={[styles.statusDot,

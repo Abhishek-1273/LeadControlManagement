@@ -18,6 +18,7 @@ import AboutScreen from '../screens/common/AboutScreen';
 import TermsScreen from '../screens/common/TermsScreen';
 import PrivacyScreen from '../screens/common/PrivacyScreen';
 import HelpSupportScreen from '../screens/common/HelpSupportScreen';
+import BookAppointmentScreen from '../screens/employee/BookAppointmentScreen';
 import { colors } from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
@@ -67,6 +68,7 @@ export default function EmployeeNavigator() {
       <Stack.Screen name="AddFollowUp" component={AddFollowUpScreen} />
       <Stack.Screen name="AddNote" component={AddNoteScreen} />
       <Stack.Screen name="EditLead" component={EditLeadScreen} />
+      <Stack.Screen name="BookAppointment" component={BookAppointmentScreen} />
       <Stack.Screen name="Sidebar" component={SidebarScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />

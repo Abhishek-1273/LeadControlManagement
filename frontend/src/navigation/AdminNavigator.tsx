@@ -24,6 +24,7 @@ import TermsScreen from '../screens/common/TermsScreen';
 import PrivacyScreen from '../screens/common/PrivacyScreen';
 import HelpSupportScreen from '../screens/common/HelpSupportScreen';
 import SendNotificationScreen from '../screens/admin/SendNotificationScreen';
+import AppointmentsScreen from '../screens/admin/AppointmentsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -52,6 +53,8 @@ function AdminTabs() {
             iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'AdminEmployees') {
             iconName = focused ? 'person-circle' : 'person-circle-outline';
+          } else if (route.name === 'AdminAppointments') {
+            iconName = focused ? 'calendar' : 'calendar-outline';
           } else if (route.name === 'AdminProfile') {
             iconName = focused ? 'settings' : 'settings-outline';
           }
@@ -59,12 +62,14 @@ function AdminTabs() {
         },
         tabBarLabel: route.name === 'AdminDashboard' ? 'Dashboard'
           : route.name === 'AdminLeads' ? 'Leads'
+          : route.name === 'AdminAppointments' ? 'Appointments'
           : route.name === 'AdminEmployees' ? 'Employees'
           : 'Settings',
       })}
     >
       <Tab.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <Tab.Screen name="AdminLeads" component={AdminLeadsScreen} />
+      <Tab.Screen name="AdminAppointments" component={AppointmentsScreen} />
       <Tab.Screen name="AdminEmployees" component={AdminEmployeesScreen} />
       <Tab.Screen name="AdminProfile" component={AdminProfileScreen} />
     </Tab.Navigator>

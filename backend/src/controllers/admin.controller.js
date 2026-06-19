@@ -1,32 +1,31 @@
 const User = require('../models/User.model');
 const Lead = require('../models/Lead.model');
+const Appointment = require('../models/Appointment.model');
 const bcrypt = require('bcryptjs');
 
-// Admin Stats
+// Admin Stats — updated for new 5 statuses
 exports.getAdminStats = async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const [
-      totalLeads, todayLeads, interested,
-      visitor, booked, totalEmployees,
-      newLeads, uninterested
+      totalLeads, todayLeads, hot,
+      warm, cold, followUp, booked, totalEmployees,
     ] = await Promise.all([
       Lead.countDocuments({}),
       Lead.countDocuments({ createdAt: { $gte: today } }),
-      Lead.countDocuments({ status: 'Interested' }),
-      Lead.countDocuments({ status: 'Visitor' }),
+      Lead.countDocuments({ status: 'Hot' }),
+      Lead.countDocuments({ status: 'Warm' }),
+      Lead.countDocuments({ status: 'Cold' }),
+      Lead.countDocuments({ status: 'Follow Up' }),
       Lead.countDocuments({ status: 'Booked' }),
       User.countDocuments({ role: 'employee' }),
-      Lead.countDocuments({ status: 'New Lead' }),
-      Lead.countDocuments({ status: 'Uninterested' }),
     ]);
 
     res.json({
-      totalLeads, todayLeads, interested,
-      visitor, booked, totalEmployees,
-      newLeads, uninterested,
+      totalLeads, todayLeads, hot,
+      warm, cold, followUp, booked, totalEmployees,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -40,23 +39,16 @@ exports.getEmployees = async (req, res) => {
       .select('-password')
       .sort({ createdAt: -1 });
 
-    // Har employee ke leads count karo
     const employeesWithStats = await Promise.all(
       employees.map(async (emp) => {
-        const totalLeads = await Lead.countDocuments({
-          assignedTo: emp._id
-        });
+        const totalLeads = await Lead.countDocuments({ assignedTo: emp._id });
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todayLeads = await Lead.countDocuments({
           assignedTo: emp._id,
           createdAt: { $gte: today }
         });
-        return {
-          ...emp.toObject(),
-          totalLeads,
-          todayLeads,
-        };
+        return { ...emp.toObject(), totalLeads, todayLeads };
       })
     );
 
@@ -69,15 +61,12 @@ exports.getEmployees = async (req, res) => {
 // Get Employee By ID
 exports.getEmployeeById = async (req, res) => {
   try {
-    const employee = await User.findById(req.params.id)
-      .select('-password');
+    const employee = await User.findById(req.params.id).select('-password');
     if (!employee) {
       return res.status(404).json({ message: 'Employee not found' });
     }
 
-    const totalLeads = await Lead.countDocuments({
-      assignedTo: employee._id
-    });
+    const totalLeads = await Lead.countDocuments({ assignedTo: employee._id });
     const recentLeads = await Lead.find({ assignedTo: employee._id })
       .sort({ createdAt: -1 })
       .limit(10);
@@ -104,11 +93,7 @@ exports.addEmployee = async (req, res) => {
     });
     res.json({
       message: 'Employee added successfully',
-      employee: {
-        _id: employee._id,
-        name: employee.name,
-        email: employee.email,
-      }
+      employee: { _id: employee._id, name: employee.name, email: employee.email }
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -119,9 +104,7 @@ exports.addEmployee = async (req, res) => {
 exports.updateEmployee = async (req, res) => {
   const { name, email, phone } = req.body;
   try {
-    await User.findByIdAndUpdate(req.params.id, {
-      name, email, phone
-    });
+    await User.findByIdAndUpdate(req.params.id, { name, email, phone });
     res.json({ message: 'Employee updated successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -132,8 +115,8 @@ exports.updateEmployee = async (req, res) => {
 exports.toggleEmployeeStatus = async (req, res) => {
   try {
     const employee = await User.findById(req.params.id);
-    employee.isActive = !employee.isActive;
     if (!employee) return res.status(404).json({ message: 'Employee not found' });
+    employee.isActive = !employee.isActive;
     await employee.save();
     res.json({
       message: `Employee ${employee.isActive ? 'activated' : 'deactivated'}`,
@@ -187,6 +170,113 @@ exports.assignLead = async (req, res) => {
     await lead.save();
 
     res.json({ message: 'Lead assigned successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ─── Appointments ───────────────────────────────────────────────────────────
+
+// Get all appointments (admin view)
+exports.getAppointments = async (req, res) => {
+  try {
+    const appointments = await Appointment.find()
+      .populate({
+        path: 'lead',
+        select: 'name phone status assignedTo',
+        populate: { path: 'assignedTo', select: 'name email' },
+      })
+      .populate('createdBy', 'name')
+      .sort({ appointmentDate: 1, appointmentTime: 1 });
+
+    res.json({ appointments, total: appointments.length });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get single appointment
+exports.getAppointmentById = async (req, res) => {
+  try {
+    const appointment = await Appointment.findById(req.params.id)
+      .populate({
+        path: 'lead',
+        select: 'name phone secondaryPhone email city status assignedTo',
+        populate: { path: 'assignedTo', select: 'name email' },
+      })
+      .populate('createdBy', 'name');
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    res.json(appointment);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Create appointment (when employee marks lead as Booked)
+exports.createAppointment = async (req, res) => {
+  const { leadId, appointmentDate, appointmentTime, description } = req.body;
+  try {
+    const lead = await Lead.findById(leadId);
+    if (!lead) return res.status(404).json({ message: 'Lead not found' });
+
+    // Set lead status to Booked
+    const oldStatus = lead.status;
+    lead.status = 'Booked';
+    lead.timeline.push({
+      type: 'appointment_set',
+      description: `Appointment booked for ${appointmentDate} at ${appointmentTime}`,
+    });
+    await lead.save();
+
+    const appointment = await Appointment.create({
+      lead: leadId,
+      appointmentDate,
+      appointmentTime,
+      description: description || '',
+      createdBy: req.user._id,
+    });
+
+    const populated = await appointment.populate([
+      { path: 'lead', select: 'name phone status assignedTo', populate: { path: 'assignedTo', select: 'name' } },
+      { path: 'createdBy', select: 'name' },
+    ]);
+
+    res.status(201).json({ message: 'Appointment created successfully', appointment: populated });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Update appointment
+exports.updateAppointment = async (req, res) => {
+  const { appointmentDate, appointmentTime, description } = req.body;
+  try {
+    const appointment = await Appointment.findByIdAndUpdate(
+      req.params.id,
+      { appointmentDate, appointmentTime, description },
+      { new: true }
+    ).populate({
+      path: 'lead',
+      select: 'name phone status assignedTo',
+      populate: { path: 'assignedTo', select: 'name' },
+    });
+
+    if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+    res.json({ message: 'Appointment updated', appointment });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Delete appointment
+exports.deleteAppointment = async (req, res) => {
+  try {
+    await Appointment.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Appointment deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

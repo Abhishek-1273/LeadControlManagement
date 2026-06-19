@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { Lead, LeadFilters } from '../types/lead.types';
 import axiosInstance from '../api/axiosInstance';
 
+// Single source of truth for the create-lead payload — includes assignedTo
+// so Admin's "Assign to Employee" picker actually reaches the backend.
 export interface CreateLeadPayload {
   name: string;
   primaryPhone: string;
@@ -11,18 +13,17 @@ export interface CreateLeadPayload {
   source?: string;
   campaign?: string;
   car?: string;
+  assignedTo?: string;   // employee _id — admin only
 }
 
 interface DashboardStats {
   totalLeads: number;
   newToday: number;
-  interested: number;
-  booked: number;
-  contacted: number;
+  hot: number;
+  warm: number;
+  cold: number;
   followUp: number;
-  visitor: number;
-  uninterested: number;
-  noResponse: number;
+  booked: number;
   todayFollowUps: number;
   pending: number;
 }
@@ -30,7 +31,7 @@ interface DashboardStats {
 interface LeadStore {
   leads: Lead[];
   selectedLead: Lead | null;
-  followUps: any[];          // ✅ Today's follow-ups
+  followUps: any[];
   stats: DashboardStats;
   isLoading: boolean;
   error: string | null;
@@ -38,29 +39,27 @@ interface LeadStore {
   fetchLeads: (filters?: LeadFilters) => Promise<void>;
   fetchLeadById: (id: string) => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
-  fetchTodayFollowUps: () => Promise<void>;  // ✅
+  fetchTodayFollowUps: () => Promise<void>;
   createLead: (data: CreateLeadPayload) => Promise<void>;
   updateStatus: (id: string, status: string) => Promise<void>;
   addNote: (id: string, note: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
-  updateLeadInfo: (id: string, data: any) => Promise<void>; // ✅
+  updateLeadInfo: (id: string, data: any) => Promise<void>;
   clearSelectedLead: () => void;
 }
 
 export const useLeadStore = create<LeadStore>((set, get) => ({
   leads: [],
   selectedLead: null,
-  followUps: [],             // ✅
+  followUps: [],
   stats: {
     totalLeads: 0,
     newToday: 0,
-    interested: 0,
-    booked: 0,
-    contacted: 0,
+    hot: 0,
+    warm: 0,
+    cold: 0,
     followUp: 0,
-    visitor: 0,
-    uninterested: 0,
-    noResponse: 0,
+    booked: 0,
     todayFollowUps: 0,
     pending: 0,
   },
@@ -98,30 +97,28 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
         stats: {
           totalLeads: res.data.totalLeads ?? 0,
           newToday: res.data.newToday ?? 0,
-          interested: res.data.interested ?? 0,
-          booked: res.data.booked ?? 0,
-          contacted: res.data.contacted ?? 0,
+          hot: res.data.hot ?? 0,
+          warm: res.data.warm ?? 0,
+          cold: res.data.cold ?? 0,
           followUp: res.data.followUp ?? 0,
-          visitor: res.data.visitor ?? 0,
-          uninterested: res.data.uninterested ?? 0,
-          noResponse: res.data.noResponse ?? 0,
+          booked: res.data.booked ?? 0,
           todayFollowUps: res.data.todayFollowUps ?? 0,
           pending: res.data.pending ?? 0,
-        }
+        },
       });
     } catch (err: any) {
       console.error('fetchDashboardStats error:', err.message);
     }
   },
 
-  // ✅ Manual lead creation
+  // Manual lead creation — assignedTo (when provided by Admin) flows straight
+  // through to the backend now that CreateLeadPayload only has one definition.
   createLead: async (data: CreateLeadPayload) => {
     const res = await axiosInstance.post('/leads', data);
-    // Prepend the newly created lead to the local list
+    // Prepend the newly created (and now-populated) lead to the local list
     set((state) => ({ leads: [res.data.lead, ...state.leads] }));
   },
 
-  // ✅ Today's follow-ups fetch
   fetchTodayFollowUps: async () => {
     try {
       const res = await axiosInstance.get('/leads/followups/today');
@@ -139,9 +136,7 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
       );
       set({ leads });
       if (get().selectedLead?._id === id) {
-        set({
-          selectedLead: { ...get().selectedLead!, status: status as any }
-        });
+        set({ selectedLead: { ...get().selectedLead!, status: status as any } });
       }
     } catch (err: any) {
       throw err;
@@ -157,7 +152,6 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
     }
   },
 
-  // ✅ FIXED VERSION
   togglePin: async (id) => {
     try {
       const res = await axiosInstance.patch(`/leads/${id}/pin`);
@@ -165,20 +159,17 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
         l._id === id ? { ...l, isPinned: res.data.isPinned } : l
       );
       const selectedLead = get().selectedLead;
-
-      // Combine both updates in one set() call
       set({
         leads,
         selectedLead: selectedLead?._id === id
           ? { ...selectedLead, isPinned: res.data.isPinned }
-          : selectedLead
+          : selectedLead,
       });
     } catch (err: any) {
       throw err;
     }
   },
 
-  // ✅ Lead info update
   updateLeadInfo: async (id, data) => {
     try {
       await axiosInstance.patch(`/leads/${id}/info`, data);
@@ -190,15 +181,3 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
 
   clearSelectedLead: () => set({ selectedLead: null }),
 }));
-
-export interface CreateLeadPayload {
-  name: string;
-  primaryPhone: string;
-  secondaryPhone?: string;
-  email?: string;
-  city?: string;
-  source?: string;
-  campaign?: string;
-  car?: string;
-  assignedTo?: string; 
-}

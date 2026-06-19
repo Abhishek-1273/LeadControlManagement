@@ -14,17 +14,15 @@ import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
 const STATUS_COLORS: Record<string, string> = {
-  'New Lead': '#3B82F6', 'Contacted': '#8B5CF6',
-  'Follow Up': '#F59E0B', 'Interested': '#10B981',
-  'Visitor': '#06B6D4', 'Booked': '#059669',
-  'Closed': '#6B7280', 'Uninterested': '#EF4444',
-  'No Response': '#9CA3AF', 'Wrong Number': '#F97316',
+  'Hot': '#EF4444',
+  'Warm': '#F59E0B',
+  'Cold': '#3B82F6',
+  'Follow Up': '#8B5CF6',
+  'Booked': '#059669',
 };
 
 const ALL_STATUSES: LeadStatus[] = [
-  'New Lead', 'Contacted', 'Follow Up', 'Interested',
-  'Visitor', 'Booked','Uninterested',
-  'No Response',
+  'Hot', 'Warm', 'Cold', 'Follow Up', 'Booked',
 ];
 
 const InfoRow = ({ icon, label, value }: any) => (

@@ -17,20 +17,15 @@ import { useLeadStore } from '../../store/leadStore';
 import axiosInstance from '../../api/axiosInstance';
 
 const STATUS_COLORS: Record<string, string> = {
-  'New Lead': '#3B82F6',
-  'Contacted': '#8B5CF6',
-  'Follow Up': '#F59E0B',
-  'Interested': '#10B981',
-  'Visitor': '#06B6D4',
+  'Hot': '#EF4444',
+  'Warm': '#F59E0B',
+  'Cold': '#3B82F6',
+  'Follow Up': '#8B5CF6',
   'Booked': '#059669',
-  'Uninterested': '#EF4444',
-  'No Response': '#9CA3AF',
 };
 
 const ALL_STATUSES: LeadStatus[] = [
-  'New Lead', 'Contacted', 'Follow Up', 'Interested',
-  'Visitor', 'Booked', 'Uninterested',
-  'No Response']
+  'Hot', 'Warm', 'Cold', 'Follow Up', 'Booked']
 
 const TimelineItem = ({ icon, title, desc, time, isLast }: {
   icon: string; title: string;
@@ -128,6 +123,15 @@ export default function LeadDetailScreen() {
 
   const handleStatusChange = async (newStatus: LeadStatus) => {
     setShowStatusModal(false);
+    // If marking as Booked, navigate to book appointment screen
+    if (newStatus === 'Booked') {
+      navigation.navigate('BookAppointment', {
+        leadId,
+        leadName: lead.name,
+        leadPhone: lead.phone,
+      });
+      return;
+    }
     try {
       await updateStatus(leadId, newStatus);
       Toast.show({
@@ -249,20 +253,6 @@ export default function LeadDetailScreen() {
             <Ionicons name="chevron-down" size={14} color={statusColor} />
           </TouchableOpacity>
 
-          {/* Visitor Date Button — sirf Visitor status pe */}
-          {lead.status === 'Visitor' && (
-            <TouchableOpacity
-              style={styles.visitorDateBtn}
-              onPress={() => setShowVisitorDatePicker(true)}
-            >
-              <Ionicons name="calendar" size={16} color={colors.white} />
-              <Text style={styles.visitorDateText}>
-                {lead.visitorDate
-                  ? `Visit: ${lead.visitorDate}`
-                  : 'Set Visitor Date'}
-              </Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Date Picker */}

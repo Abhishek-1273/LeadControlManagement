@@ -1,16 +1,25 @@
 const { body, query, param } = require('express-validator');
 
-const LEAD_STATUSES = [
-  'New Lead', 'Contacted', 'Follow Up', 'Visitor',
-  'Interested', 'Booked', 'Uninterested', 'No Response',
-];
-// ^ Adjust this list to match the exact status values your app uses.
+const LEAD_STATUSES = ['Hot', 'Warm', 'Cold', 'Follow Up', 'Booked'];
+
+// Strips country code prefix (+91, 91) then removes all non-digits.
+// Returns only the 10-digit number or throws for validation.
+const normalizePhone = (value) => {
+  if (!value) return value;
+  let cleaned = String(value).trim();
+  // Remove +91 or leading 91 (country code)
+  cleaned = cleaned.replace(/^\+91/, '').replace(/^91(?=\d{10}$)/, '');
+  // Remove spaces, dashes, brackets, dots
+  cleaned = cleaned.replace(/[\s\-().+]/g, '');
+  return cleaned;
+};
 
 const objectId = (name) =>
   param(name).isMongoId().withMessage('Invalid id');
 
 module.exports = {
   LEAD_STATUSES,
+  normalizePhone,
 
   loginRules: [
     body('email').isString().trim().notEmpty().withMessage('Email is required')
@@ -30,7 +39,7 @@ module.exports = {
   updateStatusRules: [
     objectId('id'),
     body('status').isString().trim().isIn(LEAD_STATUSES)
-      .withMessage('Invalid status'),
+      .withMessage(`Invalid status. Allowed: ${LEAD_STATUSES.join(', ')}`),
   ],
 
   addNoteRules: [
@@ -46,17 +55,12 @@ module.exports = {
     body('notes').optional().isString().trim().isLength({ max: 1000 }),
   ],
 
-  visitorDateRules: [
-    objectId('id'),
-    body('visitorDate').isString().trim().notEmpty()
-      .withMessage('Visitor date is required'),
-  ],
-
   updateInfoRules: [
     objectId('id'),
     body('name').optional().isString().trim().isLength({ min: 1, max: 120 }),
-    body('phone').optional().isString().trim().matches(/^[+\d][\d\s-]{6,19}$/)
-      .withMessage('Invalid phone'),
+    body('phone').optional().isString().trim()
+      .customSanitizer(normalizePhone)
+      .matches(/^\d{10}$/).withMessage('Phone must be exactly 10 digits (no country code)'),
     body('campaign').optional().isString().trim().isLength({ max: 120 }),
     body('email').optional({ checkFalsy: true }).isEmail().withMessage('Invalid email'),
     body('city').optional().isString().trim().isLength({ max: 80 }),
@@ -70,12 +74,14 @@ module.exports = {
 
     body('primaryPhone')
       .isString().trim().notEmpty().withMessage('Primary phone is required')
-      .matches(/^\d{10}$/).withMessage('Primary phone must be a valid 10-digit number'),
+      .customSanitizer(normalizePhone)
+      .matches(/^\d{10}$/).withMessage('Primary phone must be exactly 10 digits (no country code)'),
 
     body('secondaryPhone')
       .optional({ checkFalsy: true })
       .isString().trim()
-      .matches(/^\d{10}$/).withMessage('Secondary phone must be a valid 10-digit number')
+      .customSanitizer(normalizePhone)
+      .matches(/^\d{10}$/).withMessage('Secondary phone must be exactly 10 digits (no country code)')
       .custom((value, { req }) => {
         if (value && value === req.body.primaryPhone) {
           throw new Error('Secondary phone cannot be the same as primary phone');

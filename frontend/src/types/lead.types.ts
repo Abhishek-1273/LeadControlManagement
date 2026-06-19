@@ -1,12 +1,9 @@
 export type LeadStatus =
-  | 'New Lead'
-  | 'Contacted'
+  | 'Hot'
+  | 'Warm'
+  | 'Cold'
   | 'Follow Up'
-  | 'Interested'
-  | 'Visitor'
   | 'Booked'
-  | 'Uninterested'
-  | 'No Response'
 
 export interface Lead {
   _id: string;
@@ -17,8 +14,7 @@ export interface Lead {
   city?: string;
   source: string;
   campaign?: string;
-  car?: string;           
-  visitorDate?: string;
+  car?: string;
   status: LeadStatus;
   assignedTo: string;
   createdAt: string;
@@ -47,7 +43,7 @@ export interface FollowUp {
 
 export interface TimelineEntry {
   _id: string;
-  type: 'created' | 'status_changed' | 'note_added' | 'followup_added' | 'assigned';
+  type: 'created' | 'status_changed' | 'note_added' | 'followup_added' | 'assigned' | 'appointment_set';
   description: string;
   createdAt: string;
 }
@@ -59,4 +55,20 @@ export interface LeadFilters {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+}
+
+export interface Appointment {
+  _id: string;
+  lead: {
+    _id: string;
+    name: string;
+    phone: string;
+    status: LeadStatus;
+    assignedTo?: { _id: string; name: string; email: string };
+  };
+  appointmentDate: string;
+  appointmentTime: string;
+  description?: string;
+  createdBy: { _id: string; name: string };
+  createdAt: string;
 }

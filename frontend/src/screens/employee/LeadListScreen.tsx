@@ -21,27 +21,19 @@ import { useLeadStore } from '../../store/leadStore';
 // ─────────────────────────────────────────────
 const STATUS_FILTERS: { label: string; value: LeadStatus | 'All' }[] = [
   { label: 'All', value: 'All' },
-  { label: 'New Lead', value: 'New Lead' },
-  { label: 'Contacted', value: 'Contacted' },
-  { label: 'Follow Up', value: 'Follow Up' },
-  { label: 'Interested', value: 'Interested' },
-  { label: 'Visitor', value: 'Visitor' },
-  { label: 'Booked', value: 'Booked' },
-  { label: 'Uninterested', value: 'Uninterested' },
-  { label: 'No Response', value: 'No Response' },
+  { label: '🔥 Hot', value: 'Hot' },
+  { label: '🌤 Warm', value: 'Warm' },
+  { label: '❄️ Cold', value: 'Cold' },
+  { label: '📅 Follow Up', value: 'Follow Up' },
+  { label: '✅ Booked', value: 'Booked' },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  'New Lead': '#3B82F6',
-  'Contacted': '#8B5CF6',
-  'Follow Up': '#F59E0B',
-  'Interested': '#10B981',
-  'Visitor': '#06B6D4',
+  'Hot': '#EF4444',
+  'Warm': '#F59E0B',
+  'Cold': '#3B82F6',
+  'Follow Up': '#8B5CF6',
   'Booked': '#059669',
-  'Closed': '#6B7280',
-  'Uninterested': '#EF4444',
-  'No Response': '#9CA3AF',
-  'Wrong Number': '#F97316',
 };
 
 const PHONE_REGEX = /^\d{10}$/;

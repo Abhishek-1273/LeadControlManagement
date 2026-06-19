@@ -60,7 +60,8 @@ export default function EditLeadScreen() {
     }, [selectedLead]);
 
     const handleSave = async () => {
-        if (!name || !phone) {
+        const cleanPhone = phone.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '');
+        if (!name || !cleanPhone) {
             Toast.show({
                 type: 'error',
                 text1: 'Required Fields ❌',
@@ -68,10 +69,18 @@ export default function EditLeadScreen() {
             });
             return;
         }
+        if (!/^\d{10}$/.test(cleanPhone)) {
+            Toast.show({
+                type: 'error',
+                text1: 'Invalid Phone ❌',
+                text2: 'Phone must be exactly 10 digits (no country code)',
+            });
+            return;
+        }
         setIsLoading(true);
         try {
             await axiosInstance.patch(`/leads/${leadId}/info`, {
-                name, phone, email, city, car, campaign,
+                name, phone: cleanPhone, email, city, car, campaign,
             });
             await fetchLeadById(leadId);
             Toast.show({
@@ -81,12 +90,23 @@ export default function EditLeadScreen() {
                 visibilityTime: 2000,
             });
             navigation.goBack();
-        } catch {
-            Toast.show({
-                type: 'error',
-                text1: 'Update Failed ❌',
-                text2: 'Could not update lead information',
-            });
+        } catch (err: any) {
+            const status = err?.response?.status;
+            const msg: string = err?.response?.data?.message || 'Could not update lead information';
+            if (status === 409) {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Duplicate Phone ⚠️',
+                    text2: msg,
+                    visibilityTime: 3000,
+                });
+            } else {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Update Failed ❌',
+                    text2: msg,
+                });
+            }
         } finally {
             setIsLoading(false);
         }

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import axiosInstance from '../api/axiosInstance';
+import { Appointment } from '../types/lead.types';
 
 interface Employee {
   _id: string;
@@ -15,18 +16,20 @@ interface Employee {
 interface AdminStats {
   totalLeads: number;
   todayLeads: number;
-  interested: number;
-  visitor: number;
+  hot: number;
+  warm: number;
+  cold: number;
+  followUp: number;
   booked: number;
   totalEmployees: number;
-  newLeads: number;
-  uninterested: number;
 }
 
 interface AdminStore {
   employees: Employee[];
   selectedEmployee: Employee | null;
   stats: AdminStats;
+  appointments: Appointment[];
+  selectedAppointment: Appointment | null;
   isLoading: boolean;
   error: string | null;
 
@@ -37,16 +40,24 @@ interface AdminStore {
   toggleEmployeeStatus: (id: string) => Promise<void>;
   fetchAdminStats: () => Promise<void>;
   assignLead: (leadId: string, employeeId: string) => Promise<void>;
+
+  // Appointments
+  fetchAppointments: () => Promise<void>;
+  fetchAppointmentById: (id: string) => Promise<void>;
+  createAppointment: (data: { leadId: string; appointmentDate: string; appointmentTime: string; description?: string }) => Promise<void>;
+  updateAppointment: (id: string, data: any) => Promise<void>;
+  deleteAppointment: (id: string) => Promise<void>;
 }
 
 export const useAdminStore = create<AdminStore>((set, get) => ({
   employees: [],
   selectedEmployee: null,
   stats: {
-    totalLeads: 0, todayLeads: 0, interested: 0,
-    visitor: 0, booked: 0, totalEmployees: 0,
-    newLeads: 0, uninterested: 0,
+    totalLeads: 0, todayLeads: 0, hot: 0,
+    warm: 0, cold: 0, followUp: 0, booked: 0, totalEmployees: 0,
   },
+  appointments: [],
+  selectedAppointment: null,
   isLoading: false,
   error: null,
 
@@ -108,9 +119,56 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
 
   assignLead: async (leadId, employeeId) => {
     try {
-      await axiosInstance.patch(`/admin/leads/${leadId}/assign`, {
-        employeeId
-      });
+      await axiosInstance.patch(`/admin/leads/${leadId}/assign`, { employeeId });
+    } catch (err: any) {
+      throw err;
+    }
+  },
+
+  // ─── Appointments ──────────────────────────────────────
+  fetchAppointments: async () => {
+    set({ isLoading: true });
+    try {
+      const res = await axiosInstance.get('/admin/appointments');
+      set({ appointments: res.data.appointments || [], isLoading: false });
+    } catch (err: any) {
+      set({ error: err.message, isLoading: false });
+    }
+  },
+
+  fetchAppointmentById: async (id) => {
+    set({ isLoading: true });
+    try {
+      const res = await axiosInstance.get(`/admin/appointments/${id}`);
+      set({ selectedAppointment: res.data, isLoading: false });
+    } catch (err: any) {
+      set({ error: err.message, isLoading: false });
+    }
+  },
+
+  createAppointment: async (data) => {
+    try {
+      const res = await axiosInstance.post('/admin/appointments', data);
+      await get().fetchAppointments();
+      return res.data;
+    } catch (err: any) {
+      throw err;
+    }
+  },
+
+  updateAppointment: async (id, data) => {
+    try {
+      await axiosInstance.patch(`/admin/appointments/${id}`, data);
+      await get().fetchAppointments();
+    } catch (err: any) {
+      throw err;
+    }
+  },
+
+  deleteAppointment: async (id) => {
+    try {
+      await axiosInstance.delete(`/admin/appointments/${id}`);
+      set(state => ({ appointments: state.appointments.filter(a => a._id !== id) }));
     } catch (err: any) {
       throw err;
     }

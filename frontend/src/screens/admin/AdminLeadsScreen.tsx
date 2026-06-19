@@ -16,25 +16,20 @@ import axiosInstance from '../../api/axiosInstance';
 import Toast from 'react-native-toast-message';
 
 const STATUS_COLORS: Record<string, string> = {
-  'New Lead': '#3B82F6',
-  'Contacted': '#8B5CF6',
-  'Follow Up': '#F59E0B',
-  'Interested': '#10B981',
-  'Visitor': '#06B6D4',
+  'Hot': '#EF4444',
+  'Warm': '#F59E0B',
+  'Cold': '#3B82F6',
+  'Follow Up': '#8B5CF6',
   'Booked': '#059669',
-  'Uninterested': '#EF4444',
-  'No Response': '#9CA3AF',
 };
 
 const STATUS_FILTERS = [
   { label: 'All', value: 'All' },
-  { label: 'New', value: 'New Lead' },
-  { label: 'Contacted', value: 'Contacted' },
-  { label: 'Follow Up', value: 'Follow Up' },
-  { label: 'Interested', value: 'Interested' },
-  { label: 'Visitor', value: 'Visitor' },
-  { label: 'Booked', value: 'Booked' },
-  { label: 'Uninterested', value: 'Uninterested' },
+  { label: '🔥 Hot', value: 'Hot' },
+  { label: '🌤 Warm', value: 'Warm' },
+  { label: '❄️ Cold', value: 'Cold' },
+  { label: '📅 Follow Up', value: 'Follow Up' },
+  { label: '✅ Booked', value: 'Booked' },
 ];
 
 const PHONE_REGEX = /^\d{10}$/;
@@ -469,8 +464,7 @@ export default function AdminLeadsScreen() {
           <View style={styles.headerRight}>
             {/* Add Lead */}
             <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
-              <Ionicons name="add" size={16} color={colors.white} />
-              <Text style={styles.addBtnText}>hlo</Text>
+              <Ionicons name="person-add" size={18} color={colors.white} />
             </TouchableOpacity>
             {/* Bulk Delete */}
             <TouchableOpacity

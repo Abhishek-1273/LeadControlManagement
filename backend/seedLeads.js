@@ -1,172 +1,159 @@
+// seed.js — 100 leads seed karo
+// Usage: node seed.js
+// Place karo: backend/ folder mein (same level as package.json)
+
+require('dotenv').config({ path: './src/../.env' });
 const mongoose = require('mongoose');
 
-// ── Inline schemas (no external imports needed) ──────────────────────────────
+// ── Models inline (path adjust karo agar zaroorat ho) ──
+const Lead = require('./src/models/Lead.model');
+const User = require('./src/models/User.model');
 
-const noteSchema = new mongoose.Schema({
-  content: { type: String, required: true },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-}, { timestamps: true });
-
-const timelineSchema = new mongoose.Schema({
-  type: {
-    type: String,
-    enum: ['created', 'status_changed', 'note_added', 'followup_added', 'assigned'],
-  },
-  description: String,
-}, { timestamps: true });
-
-const leadSchema = new mongoose.Schema({
-  name:        { type: String, required: true },
-  phone:       { type: String, required: true },
-  email:       { type: String },
-  city:        { type: String },
-  source:      { type: String, default: 'Unknown' },
-  campaign:    { type: String },
-  message:     { type: String },
-  car:         { type: String },
-  visitorDate: { type: String },
-  status: {
-    type: String,
-    enum: [
-      'New Lead','Contacted','Follow Up','Interested',
-      'Visitor','Booked','Closed','Uninterested','No Response','Wrong Number',
-    ],
-    default: 'New Lead',
-  },
-  assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  isPinned:   { type: Boolean, default: false },
-  notes:      [noteSchema],
-  timeline:   [timelineSchema],
-}, { timestamps: true });
-
-const Lead = mongoose.model('Lead', leadSchema);
-
-// ── Data pools ────────────────────────────────────────────────────────────────
-
-const firstNames = [
-  'Aarav','Vivaan','Aditya','Vihaan','Arjun','Sai','Reyansh','Ayaan','Krishna','Ishaan',
-  'Ananya','Aadhya','Diya','Saanvi','Myra','Priya','Riya','Sneha','Neha','Pooja',
-  'Rohit','Rahul','Amit','Suresh','Vikram','Rajesh','Manish','Deepak','Harish','Kiran',
-  'Sunita','Kavya','Divya','Swati','Meera','Lalita','Geeta','Asha','Nisha','Rekha',
-  'Mohit','Nikhil','Gaurav','Sachin','Abhishek','Pankaj','Sanjay','Ravi','Anil','Manoj',
+// ── Realistic Indian data ───────────────────────────────
+const FIRST_NAMES = [
+  'Rahul', 'Priya', 'Amit', 'Sneha', 'Vikram', 'Pooja', 'Arjun', 'Neha',
+  'Rohit', 'Anita', 'Suresh', 'Kavya', 'Manish', 'Divya', 'Rajesh', 'Sunita',
+  'Deepak', 'Meera', 'Aakash', 'Ritu', 'Sanjay', 'Anjali', 'Karan', 'Nisha',
+  'Vikas', 'Swati', 'Nikhil', 'Preeti', 'Gaurav', 'Shweta', 'Harsh', 'Pallavi',
+  'Mohit', 'Rekha', 'Tarun', 'Geeta', 'Vivek', 'Madhuri', 'Sachin', 'Asha',
 ];
 
-const lastNames = [
-  'Sharma','Verma','Singh','Kumar','Patel','Joshi','Mehta','Gupta','Yadav','Mishra',
-  'Chopra','Malhotra','Kapoor','Reddy','Nair','Pillai','Iyer','Menon','Rao','Das',
+const LAST_NAMES = [
+  'Sharma', 'Verma', 'Patel', 'Singh', 'Kumar', 'Gupta', 'Joshi', 'Mehta',
+  'Shah', 'Reddy', 'Nair', 'Iyer', 'Kapoor', 'Malhotra', 'Chauhan', 'Yadav',
+  'Mishra', 'Pandey', 'Tiwari', 'Agarwal', 'Bose', 'Das', 'Roy', 'Sen',
 ];
 
-const cities = [
-  'Mumbai','Delhi','Bangalore','Hyderabad','Chennai','Pune','Kolkata','Ahmedabad',
-  'Jaipur','Lucknow','Chandigarh','Surat','Nagpur','Indore','Bhopal',
+const CARS = [
+  'Maruti Swift', 'Hyundai i20', 'Tata Nexon', 'Honda City',
+  'Kia Seltos', 'Mahindra XUV700', 'Toyota Innova', 'Volkswagen Polo',
+  'Skoda Slavia', 'Hyundai Creta', 'Tata Altroz', 'Renault Kiger',
+  'Nissan Magnite', 'MG Hector', 'Ford EcoSport', 'Maruti Ertiga',
+  'Honda Amaze', 'Tata Punch', 'Mahindra Scorpio', 'Toyota Fortuner',
+  'Swift Dzire', 'Hyundai Venue', 'Kia Sonet', 'Maruti Baleno',
 ];
 
-const sources = ['Facebook','Instagram','Google','WhatsApp','Referral','Walk-In','Website','Unknown'];
-
-const campaigns = [
-  'Diwali Offer 2024','Summer Sale','New Year Deal','Festival Bonanza',
-  'EMI Zero Scheme','Test Drive Campaign','Trade-In Offer',null,null,
+const CITIES = [
+  'Mumbai', 'Delhi', 'Bangalore', 'Pune', 'Hyderabad', 'Chennai',
+  'Kolkata', 'Ahmedabad', 'Jaipur', 'Lucknow', 'Chandigarh', 'Nagpur',
+  'Indore', 'Bhopal', 'Gurugram', 'Noida', 'Vadodara', 'Surat',
 ];
 
-const cars = [
-  'Maruti Swift','Hyundai i20','Honda City','Tata Nexon','Kia Seltos',
-  'Mahindra Scorpio','Toyota Fortuner','Creta','Volkswagen Polo','MG Hector',
-  'Tata Punch','Maruti Baleno','Hyundai Venue','Renault Kiger','Nissan Magnite',
+const SOURCES = [
+  'WhatsApp', 'Facebook', 'Instagram', 'Referral',
+  'Walk-in', 'Website', 'Unknown', 'Google Ads',
 ];
 
-const statuses = [
-  'New Lead','Contacted','Follow Up','Interested',
-  'Visitor','Booked','Closed','Uninterested','No Response','Wrong Number',
+const STATUSES = [
+  'New Lead', 'New Lead', 'New Lead',       // more new leads
+  'Contacted', 'Contacted',
+  'Follow Up', 'Follow Up',
+  'Interested', 'Interested',
+  'Visitor',
+  'Booked',
+  'Uninterested',
+  'No Response', 'No Response',
 ];
 
-const messages = [
-  'Interested in test drive','Please call back','Looking for exchange offer',
-  'Need EMI details','Enquiry for corporate discount','Want to visit showroom',
-  'Comparing with competitor','Budget around 10L','Urgent requirement','No message',
-];
+// ── Helpers ─────────────────────────────────────────────
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-const noteTexts = [
-  'Customer is very interested, follow up by weekend.',
-  'Sent brochure on WhatsApp.',
-  'Left voicemail, awaiting callback.',
-  'Offered a test drive for Saturday.',
-  'Negotiation in progress on price.',
-  'Customer asked for insurance details.',
-  'Visit scheduled for next week.',
-];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const pick  = arr => arr[Math.floor(Math.random() * arr.length)];
-const rand5 = ()  => Math.floor(Math.random() * 5);
-const phone = ()  => `+91${Math.floor(6000000000 + Math.random() * 3999999999)}`;
-
-const randomDate = (start, end) => {
-  const d = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-  return d.toISOString().split('T')[0];
+const randomPhone = () => {
+  const prefixes = ['98', '97', '96', '95', '94', '93', '91', '90', '88', '87', '86', '85', '70'];
+  return pick(prefixes) + String(Math.floor(Math.random() * 90000000 + 10000000));
 };
 
-function buildLead(i) {
-  const firstName = pick(firstNames);
-  const lastName  = pick(lastNames);
-  const status    = pick(statuses);
-  const source    = pick(sources);
+const randomDate = (daysBack) => {
+  const d = new Date();
+  d.setDate(d.getDate() - Math.floor(Math.random() * daysBack));
+  return d;
+};
 
-  // Build timeline
-  const timeline = [
-    { type: 'created', description: `Lead created from ${source}` },
-  ];
-  if (status !== 'New Lead') {
-    timeline.push({ type: 'status_changed', description: `Status changed to ${status}` });
-  }
-
-  // Optionally add a note
-  const notes = [];
-  if (Math.random() > 0.4) {
-    notes.push({ content: pick(noteTexts) });
-    timeline.push({ type: 'note_added', description: 'A note was added' });
-  }
-
-  return {
-    name:        `${firstName} ${lastName}`,
-    phone:       phone(),
-    email:       Math.random() > 0.3
-                   ? `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@example.com`
-                   : undefined,
-    city:        pick(cities),
-    source,
-    campaign:    pick(campaigns),
-    message:     pick(messages),
-    car:         pick(cars),
-    visitorDate: Math.random() > 0.6
-                   ? randomDate(new Date('2024-01-01'), new Date())
-                   : undefined,
-    status,
-    isPinned:    Math.random() > 0.85,
-    notes,
-    timeline,
-  };
-}
-
-// ── Main ──────────────────────────────────────────────────────────────────────
-
+// ── Seed function ────────────────────────────────────────
 async function seed() {
-  const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/velta';
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log('✅ MongoDB Connected');
 
-  console.log(`🔌 Connecting to: ${MONGO_URI}`);
-  await mongoose.connect(MONGO_URI);
-  console.log('✅ Connected');
+    // Employees fetch karo — unhe leads assign karenge
+    const employees = await User.find({ role: 'employee', isActive: true }).select('_id name');
+    if (!employees.length) {
+      console.warn('⚠️  No employees found — leads will be unassigned');
+    } else {
+      console.log(`👥 Found ${employees.length} employee(s): ${employees.map(e => e.name).join(', ')}`);
+    }
 
-  const leads = Array.from({ length: 100 }, (_, i) => buildLead(i + 1));
+    // Purane seed leads delete karo (optional — comment out karo agar nahi karna)
+    const deleted = await Lead.deleteMany({ source: { $in: ['WhatsApp', 'Facebook', 'Instagram', 'Referral', 'Walk-in', 'Website', 'Unknown', 'Google Ads'] } });
+    console.log(`🗑️  Cleared ${deleted.deletedCount} existing leads`);
 
-  await Lead.insertMany(leads);
-  console.log(`🌱 Inserted 100 leads successfully!`);
+    const leads = [];
 
-  await mongoose.disconnect();
-  console.log('👋 Disconnected. Done.');
+    for (let i = 0; i < 100; i++) {
+      const firstName = pick(FIRST_NAMES);
+      const lastName = pick(LAST_NAMES);
+      const name = `${firstName} ${lastName}`;
+      const status = pick(STATUSES);
+      const assignedTo = employees.length
+        ? pick(employees)._id
+        : undefined;
+
+      const createdAt = randomDate(180); // last 6 months
+
+      const lead = {
+        name,
+        phone: randomPhone(),
+        secondaryPhone: Math.random() > 0.7 ? randomPhone() : '',
+        email: Math.random() > 0.6
+          ? `${firstName.toLowerCase()}.${lastName.toLowerCase()}${Math.floor(Math.random() * 99)}@gmail.com`
+          : undefined,
+        city: pick(CITIES),
+        source: pick(SOURCES),
+        car: pick(CARS),
+        status,
+        assignedTo,
+        isPinned: Math.random() > 0.9, // ~10% pinned
+        notes: [],
+        timeline: [
+          {
+            type: 'created',
+            description: `Lead created`,
+            createdAt,
+            updatedAt: createdAt,
+          },
+          ...(status !== 'New Lead' ? [{
+            type: 'status_changed',
+            description: `Status changed to ${status}`,
+            createdAt: randomDate(90),
+            updatedAt: randomDate(90),
+          }] : []),
+        ],
+        createdAt,
+        updatedAt: createdAt,
+      };
+
+      leads.push(lead);
+    }
+
+    await Lead.insertMany(leads);
+    console.log(`✅ 100 leads seeded successfully!`);
+
+    // Summary print karo
+    const statusSummary = leads.reduce((acc, l) => {
+      acc[l.status] = (acc[l.status] || 0) + 1;
+      return acc;
+    }, {});
+    console.log('\n📊 Status breakdown:');
+    Object.entries(statusSummary).forEach(([s, c]) => console.log(`   ${s}: ${c}`));
+    console.log(`\n📌 Pinned: ${leads.filter(l => l.isPinned).length}`);
+    console.log(`👥 Assigned: ${leads.filter(l => l.assignedTo).length}`);
+
+  } catch (err) {
+    console.error('❌ Seed failed:', err.message);
+  } finally {
+    await mongoose.disconnect();
+    console.log('\n🔌 Disconnected');
+  }
 }
 
-seed().catch(err => {
-  console.error('❌ Seed failed:', err.message);
-  process.exit(1);
-});
+seed();
