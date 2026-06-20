@@ -2,8 +2,6 @@ import { create } from 'zustand';
 import { Lead, LeadFilters } from '../types/lead.types';
 import axiosInstance from '../api/axiosInstance';
 
-// Single source of truth for the create-lead payload — includes assignedTo
-// so Admin's "Assign to Employee" picker actually reaches the backend.
 export interface CreateLeadPayload {
   name: string;
   primaryPhone: string;
@@ -13,7 +11,7 @@ export interface CreateLeadPayload {
   source?: string;
   campaign?: string;
   car?: string;
-  assignedTo?: string;   // employee _id — admin only
+  assignedTo?: string;
 }
 
 interface DashboardStats {
@@ -26,10 +24,16 @@ interface DashboardStats {
   booked: number;
   todayFollowUps: number;
   pending: number;
+  // New employee-specific fields
+  todayLeadsCount: number;
+  previousPendingCount: number;
+  bookedToday: number;
 }
 
 interface LeadStore {
   leads: Lead[];
+  todayLeads: Lead[];
+  pendingLeads: Lead[];
   selectedLead: Lead | null;
   followUps: any[];
   stats: DashboardStats;
@@ -40,6 +44,8 @@ interface LeadStore {
   fetchLeadById: (id: string) => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
   fetchTodayFollowUps: () => Promise<void>;
+  fetchEmployeeTodayLeads: () => Promise<void>;
+  fetchEmployeePendingLeads: () => Promise<void>;
   createLead: (data: CreateLeadPayload) => Promise<void>;
   updateStatus: (id: string, status: string) => Promise<void>;
   addNote: (id: string, note: string) => Promise<void>;
@@ -50,6 +56,8 @@ interface LeadStore {
 
 export const useLeadStore = create<LeadStore>((set, get) => ({
   leads: [],
+  todayLeads: [],
+  pendingLeads: [],
   selectedLead: null,
   followUps: [],
   stats: {
@@ -62,6 +70,9 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
     booked: 0,
     todayFollowUps: 0,
     pending: 0,
+    todayLeadsCount: 0,
+    previousPendingCount: 0,
+    bookedToday: 0,
   },
   isLoading: false,
   error: null,
@@ -72,6 +83,8 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
       const params = new URLSearchParams();
       if (filters?.status) params.append('status', filters.status);
       if (filters?.search) params.append('search', filters.search);
+      if ((filters as any)?.dateFrom) params.append('dateFrom', (filters as any).dateFrom);
+      if ((filters as any)?.dateTo) params.append('dateTo', (filters as any).dateTo);
       const res = await axiosInstance.get(`/leads?${params.toString()}`);
       set({ leads: res.data.leads || [], isLoading: false });
     } catch (err: any) {
@@ -96,7 +109,7 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
       set({
         stats: {
           totalLeads: res.data.totalLeads ?? 0,
-          newToday: res.data.newToday ?? 0,
+          newToday: res.data.newToday ?? res.data.todayLeadsCount ?? 0,
           hot: res.data.hot ?? 0,
           warm: res.data.warm ?? 0,
           cold: res.data.cold ?? 0,
@@ -104,6 +117,9 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
           booked: res.data.booked ?? 0,
           todayFollowUps: res.data.todayFollowUps ?? 0,
           pending: res.data.pending ?? 0,
+          todayLeadsCount: res.data.todayLeadsCount ?? 0,
+          previousPendingCount: res.data.previousPendingCount ?? 0,
+          bookedToday: res.data.bookedToday ?? 0,
         },
       });
     } catch (err: any) {
@@ -111,11 +127,31 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
     }
   },
 
-  // Manual lead creation — assignedTo (when provided by Admin) flows straight
-  // through to the backend now that CreateLeadPayload only has one definition.
+  fetchEmployeeTodayLeads: async () => {
+    set({ isLoading: true });
+    try {
+      const res = await axiosInstance.get('/leads/employee-today');
+      set({ todayLeads: res.data.leads || [], isLoading: false });
+    } catch (err: any) {
+      set({ error: err.message, isLoading: false });
+    }
+  },
+
+  fetchEmployeePendingLeads: async () => {
+    try {
+      const res = await axiosInstance.get('/leads/employee-pending');
+      set({ pendingLeads: res.data.leads || [] });
+    } catch (err: any) {
+      console.error(
+        'fetchEmployeePendingLeads error:',
+        err.response?.status,
+        err.response?.data?.message || err.message
+      );
+    }
+  },
+
   createLead: async (data: CreateLeadPayload) => {
     const res = await axiosInstance.post('/leads', data);
-    // Prepend the newly created (and now-populated) lead to the local list
     set((state) => ({ leads: [res.data.lead, ...state.leads] }));
   },
 

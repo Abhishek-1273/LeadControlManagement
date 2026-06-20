@@ -3,8 +3,11 @@ const { getMessaging } = require('../config/firebase');
 const sendPushNotification = async (pushToken, title, body, data = {}) => {
   if (!pushToken) return;
 
+  const messaging = getMessaging();
+  if (!messaging) return; // Firebase not configured — skip silently
+
   try {
-    await getMessaging().send({
+    await messaging.send({
       token: pushToken,
       notification: { title, body },
       data,

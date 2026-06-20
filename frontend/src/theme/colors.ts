@@ -1,8 +1,8 @@
 export const colors = {
   // Primary Colors
-  primary: '#2cc18a',        // Green accent
-  primaryDark: '#007A4D',    // Dark green
-  primaryLight: '#E8F8F2',   // Light green background
+  primary: '#0EA5E9',
+  primaryDark: '#0284C7',
+  primaryLight: '#E0F2FE',
 
   // Background
   background: '#F5F7FA',     // App background
@@ -14,14 +14,13 @@ export const colors = {
   textSecondary: '#6B7280',  // Subtitle text
   textLight: '#9CA3AF',      // Placeholder
 
-  // Status Colors (Lead Status ke liye)
-  statusNew: '#3B82F6',        // Blue
-  statusContacted: '#8B5CF6',  // Purple
-  statusFollowUp: '#F59E0B',   // Yellow
-  statusInterested: '#10B981', // Green
-  statusBooked: '#059669',     // Dark Green
-  statusClosed: '#6B7280',     // Gray
-  statusUninterested: '#EF4444', // Red
+  // they just now point to the current 5-status palette)
+  statusHot: '#EF4444',         // Red
+  statusWarm: '#F59E0B',        // Amber
+  statusCold: '#3B82F6',        // Blue
+  statusFollowUp: '#8B5CF6',    // Purple
+  statusBooked: '#059669',      // Dark Green
+  statusNew: '#3B82F6',          // → Cold (blue)
 
   // Border
   border: '#E5E7EB',

@@ -109,13 +109,16 @@ export default function AdminLeadDetailScreen() {
           </View>
           <Text style={styles.leadName}>{lead.name}</Text>
           <Text style={styles.leadPhone}>{lead.phone}</Text>
+          {lead.secondaryPhone ? (
+            <Text style={styles.leadPhone}>📱 {lead.secondaryPhone}</Text>
+          ) : null}
           <TouchableOpacity
             style={[styles.statusBadge,
-              { backgroundColor: statusColor + '20' }]}
+            { backgroundColor: statusColor + '20' }]}
             onPress={() => setShowStatusModal(true)}
           >
             <View style={[styles.statusDot,
-              { backgroundColor: statusColor }]} />
+            { backgroundColor: statusColor }]} />
             <Text style={[styles.statusText, { color: statusColor }]}>
               {lead.status}
             </Text>
@@ -185,7 +188,10 @@ export default function AdminLeadDetailScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Customer Information</Text>
           <InfoRow icon="person" label="Name" value={lead.name} />
-          <InfoRow icon="call" label="Phone" value={lead.phone} />
+          <InfoRow icon="call" label="Primary Phone" value={lead.phone} />
+          {lead.secondaryPhone ? (
+            <InfoRow icon="call-outline" label="Secondary Phone" value={lead.secondaryPhone} />
+          ) : null}
           <InfoRow icon="mail" label="Email" value={lead.email} />
           <InfoRow icon="location" label="City" value={lead.city} />
           <InfoRow icon="car-outline" label="Car" value={lead.car} />
@@ -241,14 +247,16 @@ export default function AdminLeadDetailScreen() {
                   <TouchableOpacity
                     key={status}
                     style={[styles.statusOption,
-                      isActive && styles.statusOptionActive]}
+                    isActive && styles.statusOptionActive]}
                     onPress={() => handleStatusChange(status)}
                   >
                     <View style={[styles.statusDot,
-                      { backgroundColor: sColor }]} />
+                    { backgroundColor: sColor }]} />
                     <Text style={[styles.statusOptionText,
-                      isActive && { color: colors.primary,
-                        fontWeight: typography.bold }]}>
+                    isActive && {
+                      color: colors.primary,
+                      fontWeight: typography.bold
+                    }]}>
                       {status}
                     </Text>
                     {isActive && (

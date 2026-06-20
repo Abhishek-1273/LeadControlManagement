@@ -8,32 +8,46 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { Lead, LeadStatus } from '../../types/lead.types';
 import { useLeadStore } from '../../store/leadStore';
+import {
+  LayoutList,
+  Flame,
+  Target,
+  Snowflake,
+  PhoneCall,
+  CircleCheckBig,
+  LucideIcon,
+} from 'lucide-react-native';
 
 // ─────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────
-const STATUS_FILTERS: { label: string; value: LeadStatus | 'All' }[] = [
-  { label: 'All', value: 'All' },
-  { label: '🔥 Hot', value: 'Hot' },
-  { label: '🌤 Warm', value: 'Warm' },
-  { label: '❄️ Cold', value: 'Cold' },
-  { label: '📅 Follow Up', value: 'Follow Up' },
-  { label: '✅ Booked', value: 'Booked' },
+type StatusFilter = {
+  label: string;
+  value: LeadStatus | 'All';
+  icon: LucideIcon;
+  color: string;
+};
+
+const STATUS_FILTERS: StatusFilter[] = [
+  { label: 'All', value: 'All', icon: LayoutList, color: colors.textSecondary },
+  { label: 'Hot', value: 'Hot', icon: Flame, color: colors.statusHot },            // red
+  { label: 'Warm', value: 'Warm', icon: Target, color: colors.warning },             // amber
+  { label: 'Cold', value: 'Cold', icon: Snowflake, color: colors.primary },             // blue
+  { label: 'Follow Up', value: 'Follow Up', icon: PhoneCall, color: colors.statusFollowUp },      // purple
+  { label: 'Booked', value: 'Booked', icon: CircleCheckBig, color: colors.statusBooked },         // green
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  'Hot': '#EF4444',
-  'Warm': '#F59E0B',
-  'Cold': '#3B82F6',
-  'Follow Up': '#8B5CF6',
-  'Booked': '#059669',
+  Hot: colors.statusHot,
+  Warm: colors.warning,
+  Cold: colors.primary,
+  'Follow Up': colors.statusFollowUp,
+  Booked: colors.statusBooked,
 };
 
 const PHONE_REGEX = /^\d{10}$/;
@@ -144,7 +158,7 @@ const LeadCard = React.memo(({
 });
 
 // ─────────────────────────────────────────────
-// FilterModal Component  (unchanged)
+// FilterModal Component
 // ─────────────────────────────────────────────
 const FilterModal = ({
   visible, onClose, onApply, currentFilters,
@@ -260,10 +274,9 @@ const AddLeadModal = ({
   };
 
   const handleSubmit = async () => {
-    // ── Client-side validation ──
     const errs: Partial<typeof EMPTY_FORM> = {};
-    if (!form.name.trim())                        errs.name = 'Name is required';
-    if (!form.primaryPhone.trim())                errs.primaryPhone = 'Primary phone is required';
+    if (!form.name.trim()) errs.name = 'Name is required';
+    if (!form.primaryPhone.trim()) errs.primaryPhone = 'Primary phone is required';
     else if (!PHONE_REGEX.test(form.primaryPhone)) errs.primaryPhone = 'Must be a valid 10-digit number';
 
     if (form.secondaryPhone.trim()) {
@@ -318,10 +331,8 @@ const AddLeadModal = ({
         <TouchableOpacity style={addStyles.overlay} activeOpacity={1} onPress={resetAndClose} />
 
         <View style={addStyles.sheet}>
-          {/* ── Handle bar ── */}
           <View style={addStyles.handle} />
 
-          {/* ── Header ── */}
           <View style={filterStyles.header}>
             <Text style={filterStyles.title}>Add New Lead</Text>
             <TouchableOpacity onPress={resetAndClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -329,14 +340,12 @@ const AddLeadModal = ({
             </TouchableOpacity>
           </View>
 
-          {/* ── Scrollable fields ── */}
           <ScrollView
             style={addStyles.scroll}
             contentContainerStyle={addStyles.scrollContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* Required fields */}
             <Text style={addStyles.sectionLabel}>REQUIRED</Text>
 
             <Text style={filterStyles.label}>👤 Full Name</Text>
@@ -363,7 +372,6 @@ const AddLeadModal = ({
             />
             {errors.primaryPhone ? <Text style={addStyles.errText}>{errors.primaryPhone}</Text> : null}
 
-            {/* Optional fields */}
             <Text style={[addStyles.sectionLabel, { marginTop: spacing.md }]}>OPTIONAL</Text>
 
             <Text style={filterStyles.label}>📱 Secondary Phone</Text>
@@ -414,7 +422,6 @@ const AddLeadModal = ({
             />
           </ScrollView>
 
-          {/* ── Footer: Cancel + Save ── */}
           <View style={filterStyles.footer}>
             <TouchableOpacity style={filterStyles.clearBtn} onPress={resetAndClose}>
               <Text style={filterStyles.clearText}>Cancel</Text>
@@ -442,25 +449,110 @@ const AddLeadModal = ({
 export default function LeadListScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const route = useRoute<any>();
 
-  const { leads, fetchLeads, isLoading, updateStatus, togglePin } = useLeadStore();
+  const {
+    leads, todayLeads, pendingLeads,
+    fetchLeads, fetchEmployeeTodayLeads, fetchEmployeePendingLeads,
+    isLoading, updateStatus, togglePin,
+  } = useLeadStore();
+
+  // Detect special filter mode from dashboard navigation
+  const routeFilter: string | undefined = route.params?.filter;
 
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<LeadStatus | 'All'>('All');
+
+  // Tracks whether the user has explicitly interacted with search or a
+  // filter chip (including tapping "All" itself) at least once. The Leads
+  // tab's landing state shows today's leads by default, but the moment the
+  // user touches search or ANY chip — including re-selecting "All" — the
+  // screen must switch to showing the full `leads` dataset, the same
+  // dataset the "{leads.length} leads" header count is computed from.
+  // Without this flag, "All" was indistinguishable from "untouched", so
+  // tapping "All" kept rendering todayLeads while the header kept showing
+  // leads.length, producing a header/list mismatch ("28 leads" + empty list).
+  const [hasInteractedWithFilters, setHasInteractedWithFilters] = useState(false);
+
+  // Keep a ref mirror of the current filter/search so the focus effect
+  // (which only runs on mount + routeFilter changes, not on every render)
+  // always reads the *latest* selection instead of a stale closure value.
+  const activeFilterRef = React.useRef(activeFilter);
+  const searchRef = React.useRef(search);
+  React.useEffect(() => {
+    activeFilterRef.current = activeFilter;
+  }, [activeFilter]);
+  React.useEffect(() => {
+    searchRef.current = search;
+  }, [search]);
+
+
+  const displayLeads = React.useMemo(() => {
+    if (routeFilter === 'today') return todayLeads;
+    if (routeFilter === 'pending') return pendingLeads;
+    if (routeFilter === 'booked_today') {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      return leads.filter(
+        (l) => l.status === 'Booked' && new Date(l.updatedAt) >= todayStart
+      );
+    }
+
+    if (activeFilter !== 'All') {
+      return leads.filter((l) => l.status === activeFilter);
+    }
+    return leads;
+  }, [routeFilter, leads, todayLeads, pendingLeads, search, activeFilter]);
+
+  const screenTitle = React.useMemo(() => {
+    if (routeFilter === 'today') return "Today's Leads";
+    if (routeFilter === 'pending') return 'Previous Pending';
+    if (routeFilter === 'booked_today') return 'Booked Today';
+    return 'My Leads';
+  }, [routeFilter]);
+
   const [refreshing, setRefreshing] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<any>({});
 
-  // ── Fetch on focus ──────────────────────────
+  // Re-fetch on focus (e.g. when returning from Lead Details) WITHOUT
+  // resetting the currently selected filter/search. Previously this called
+  // fetchLeads() with no arguments, which replaced the store's `leads` with
+  // the full unfiltered list every time the screen regained focus — wiping
+  // out whatever status filter (Hot/Warm/Cold/Follow Up/etc.) was active,
+  // even though the chip itself stayed visually selected. We now read the
+  // latest filter/search from refs (avoids re-subscribing the focus effect
+  // on every keystroke) and pass them through to fetchLeads so the result
+  // set always matches the active filter.
   useFocusEffect(
     useCallback(() => {
-      fetchLeads();
-    }, [])
+      if (routeFilter === 'today') {
+        fetchEmployeeTodayLeads();
+      } else if (routeFilter === 'pending') {
+        fetchEmployeePendingLeads();
+      } else {
+        fetchLeads({
+          search: searchRef.current || undefined,
+          status: activeFilterRef.current !== 'All' ? activeFilterRef.current : undefined,
+        });
+        fetchEmployeeTodayLeads();
+        fetchEmployeePendingLeads();
+      }
+      // routeFilter is the only thing that should cause this callback to be
+      // recreated (and therefore re-run on focus). activeFilter/search are
+      // read via refs above so that selecting a filter doesn't itself
+      // trigger an extra focus-driven fetch on top of the debounced one below.
+    }, [routeFilter])
   );
 
-  // ── Search / filter debounce ─────────────────
+  // Debounced fetch whenever the user explicitly changes search or filter.
+  // This is the ONLY place that should react to activeFilter/search changes
+  // for fetching purposes — the focus effect above intentionally does not
+  // depend on them, so opening/closing Lead Details never re-triggers this
+  // and never resets the selection.
   React.useEffect(() => {
+    if (routeFilter) return;
     const timer = setTimeout(() => {
       fetchLeads({
         search: search || undefined,
@@ -468,12 +560,17 @@ export default function LeadListScreen() {
       });
     }, 400);
     return () => clearTimeout(timer);
-  }, [search, activeFilter]);
+  }, [search, activeFilter, routeFilter]);
 
-  // ── Handlers ────────────────────────────────
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchLeads();
+    if (routeFilter === 'today') {
+      await fetchEmployeeTodayLeads();
+    } else if (routeFilter === 'pending') {
+      await fetchEmployeePendingLeads();
+    } else {
+      await fetchLeads();
+    }
     setRefreshing(false);
   };
 
@@ -484,16 +581,20 @@ export default function LeadListScreen() {
       text2: `${leadName} has been added successfully`,
       visibilityTime: 2500,
     });
-    await fetchLeads();   // refresh list so new lead appears immediately
+    await fetchLeads();
   };
 
+  // FIX: 'Uninterested' is not one of the 5 valid statuses
+  // (Hot / Warm / Cold / Follow Up / Booked). Using it here would get
+  // rejected by the backend's status enum validator. Swapped to 'Cold',
+  // which is this app's equivalent of a deprioritised lead.
   const handleUninterested = async (lead: Lead) => {
     try {
-      await updateStatus(lead._id, 'Uninterested');
+      await updateStatus(lead._id, 'Cold');
       Toast.show({
         type: 'info',
-        text1: 'Marked Uninterested',
-        text2: `${lead.name} marked as uninterested`,
+        text1: 'Marked Cold',
+        text2: `${lead.name} marked as cold`,
         visibilityTime: 2000,
       });
     } catch {
@@ -516,7 +617,6 @@ export default function LeadListScreen() {
     }
   };
 
-  // ── Advanced filter function ─────────────────
   const applyAdvancedFilter = useCallback((lead: Lead) => {
     if (advancedFilters.city &&
       !lead.city?.toLowerCase().includes(advancedFilters.city.toLowerCase())) return false;
@@ -526,11 +626,11 @@ export default function LeadListScreen() {
     return true;
   }, [advancedFilters]);
 
-  // ── Build typed list data ────────────────────
   const listData = React.useMemo((): ListItem[] => {
-    const pinnedLeads   = leads.filter((l) => l.isPinned);
-    const unpinnedLeads = leads.filter((l) => !l.isPinned);
-    const filteredPinned   = pinnedLeads.filter(applyAdvancedFilter);
+    const sourceLeads = displayLeads;
+    const pinnedLeads = sourceLeads.filter((l) => l.isPinned);
+    const unpinnedLeads = sourceLeads.filter((l) => !l.isPinned);
+    const filteredPinned = pinnedLeads.filter(applyAdvancedFilter);
     const filteredUnpinned = unpinnedLeads.filter(applyAdvancedFilter);
 
     const items: ListItem[] = [];
@@ -550,11 +650,30 @@ export default function LeadListScreen() {
     }
 
     return items;
-  }, [leads, applyAdvancedFilter]);
+    // FIX: this previously depended on [leads, applyAdvancedFilter] while
+    // actually reading `displayLeads` inside the memo body. `displayLeads`
+    // can change (e.g. switching between todayLeads/leads/pendingLeads, or
+    // the activeFilter changing) without the raw `leads` reference changing,
+    // so listData silently kept stale data in those cases. Depending on
+    // displayLeads directly fixes that.
+  }, [displayLeads, applyAdvancedFilter]);
+
+  // The header count must always match what's actually rendered in the
+  // FlatList below — i.e. the same pinned + unpinned leads from listData,
+  // counting only real lead items (headers/dividers excluded). Previously
+  // this text always read `leads.length` (the raw, full store list) no
+  // matter which dataset displayLeads/listData were actually showing,
+  // which caused the header to read "28 leads" while the list itself
+  // (built from todayLeads, pendingLeads, or a filtered subset) rendered
+  // zero items and showed "No leads found".
+  const visibleLeadCount = React.useMemo(
+    () => listData.filter((item) => !item.isHeader && !item.isDivider).length,
+    [listData]
+  );
 
   const keyExtractor = useCallback((item: ListItem) => {
     if (item.isDivider) return 'divider';
-    if (item.isHeader)  return `header-${item._id}`;
+    if (item.isHeader) return `header-${item._id}`;
     const lead = item as LeadItem;
     return `lead-${lead._id}-${lead.isPinned ? 'p' : 'u'}`;
   }, []);
@@ -581,16 +700,13 @@ export default function LeadListScreen() {
 
   const hasActiveFilters = Object.values(advancedFilters).some((v) => v !== '');
 
-  // ─────────────────────────────────────────────
   return (
     <View style={styles.wrapper}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
 
-        {/* ── Header ── */}
         <View style={styles.header}>
-          <Text style={styles.title}>My Leads</Text>
+          <Text style={styles.title}>{screenTitle}</Text>
           <View style={styles.headerRight}>
-            {/* Add Lead button — lives right in the header */}
             <TouchableOpacity
               style={styles.addBtn}
               onPress={() => setShowAddModal(true)}
@@ -613,10 +729,8 @@ export default function LeadListScreen() {
           </View>
         </View>
 
-        {/* ── Lead count row ── */}
-        <Text style={styles.leadCount}>{leads.length} leads</Text>
+        <Text style={styles.leadCount}>{visibleLeadCount} leads</Text>
 
-        {/* ── Search Bar ── */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={18} color={colors.textSecondary} />
           <TextInput
@@ -624,7 +738,10 @@ export default function LeadListScreen() {
             placeholder="Search by name, phone..."
             placeholderTextColor={colors.textLight}
             value={search}
-            onChangeText={setSearch}
+            onChangeText={(text) => {
+              setSearch(text);
+              setHasInteractedWithFilters(true);
+            }}
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')}>
@@ -633,32 +750,54 @@ export default function LeadListScreen() {
           )}
         </View>
 
-        {/* ── Status Filter Chips ── */}
+        {/* Status Filter Chips — fixed: taller scroll track so icon+label
+            chips don't get clipped, gap added between icon and text */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filtersContainer}
           style={styles.filtersScroll}
         >
-          {STATUS_FILTERS.map((filter) => (
-            <TouchableOpacity
-              key={filter.value}
-              style={[styles.filterChip, activeFilter === filter.value && styles.filterChipActive]}
-              onPress={() => setActiveFilter(filter.value)}
-            >
-              <Text style={[styles.filterText, activeFilter === filter.value && styles.filterTextActive]}>
-                {filter.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {STATUS_FILTERS.map((f) => {
+            const Icon = f.icon;
+            const isActive = activeFilter === f.value;
+            return (
+              <TouchableOpacity
+                key={f.value}
+                style={[
+                  styles.filterChip,
+                  isActive && {
+                    backgroundColor: `${f.color}15`,
+                    borderColor: f.color,
+                  },
+                ]}
+                onPress={() => {
+                  setActiveFilter(f.value);
+                  setHasInteractedWithFilters(true);
+                }}
+              >
+                <Icon size={15} color={f.color} />
+                <Text
+                  style={[
+                    styles.filterText,
+                    {
+                      color: isActive ? f.color : colors.textSecondary,
+                      fontWeight: isActive ? '700' : '500',
+                    },
+                  ]}
+                >
+                  {f.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
-        {/* ── Leads FlatList ── */}
         <FlatList<ListItem>
           data={listData}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
-          extraData={leads}
+          extraData={listData}
           removeClippedSubviews={false}
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}
@@ -678,7 +817,6 @@ export default function LeadListScreen() {
           }
         />
 
-        {/* ── Advanced Filter Modal ── */}
         <FilterModal
           visible={showFilterModal}
           onClose={() => setShowFilterModal(false)}
@@ -686,7 +824,6 @@ export default function LeadListScreen() {
           currentFilters={advancedFilters}
         />
 
-        {/* ── Add Lead Modal (bottom sheet) ── */}
         <AddLeadModal
           visible={showAddModal}
           onClose={() => setShowAddModal(false)}
@@ -705,7 +842,6 @@ const styles = StyleSheet.create({
   wrapper: { backgroundColor: colors.background, flex: 1 },
   safeArea: { flex: 1 },
 
-  // Header
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', paddingHorizontal: spacing.base,
@@ -717,7 +853,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
 
-  // Add Lead button (header)
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: colors.primary,
@@ -745,7 +880,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
 
-  // Search
   searchContainer: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: colors.white, marginHorizontal: spacing.base,
@@ -756,26 +890,22 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: typography.base, color: colors.textPrimary },
 
-  // Filter chips
-  filtersScroll: { maxHeight: 50, flexGrow: 0 },
+  filtersScroll: { maxHeight: 60, flexGrow: 0 },
   filtersContainer: {
-    paddingHorizontal: spacing.base, paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.base, paddingVertical: spacing.md,
     gap: spacing.sm, flexDirection: 'row', alignItems: 'center',
   },
   filterChip: {
     paddingHorizontal: spacing.md, paddingVertical: spacing.xs,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     borderRadius: 20, backgroundColor: colors.white,
     borderWidth: 1, borderColor: colors.border,
-    height: 34, justifyContent: 'center', alignItems: 'center',
+    height: 36, justifyContent: 'center',
   },
-  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   filterText: { fontSize: typography.sm, color: colors.textSecondary, fontWeight: typography.medium },
-  filterTextActive: { color: colors.white, fontWeight: typography.bold },
 
-  // List
   listContent: { paddingHorizontal: spacing.base, paddingTop: spacing.xs, gap: spacing.sm },
 
-  // Section
   sectionHeader: { paddingVertical: spacing.xs, paddingHorizontal: spacing.xs },
   sectionTitle: {
     fontSize: typography.sm, fontWeight: typography.bold,
@@ -783,7 +913,6 @@ const styles = StyleSheet.create({
   },
   sectionDivider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
 
-  // Lead Card
   leadCard: {
     backgroundColor: colors.white, borderRadius: 14,
     flexDirection: 'row', overflow: 'hidden', elevation: 2,
@@ -814,21 +943,26 @@ const styles = StyleSheet.create({
   leadCar: { fontSize: typography.xs, color: colors.primary, marginTop: 2, fontWeight: typography.medium },
   statusBadge: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: 8 },
   statusText: { fontSize: typography.xs, fontWeight: typography.semiBold },
-  cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  // FIX: cardBottom previously had no top spacing from cardTop other than
+  // the parent's `gap: spacing.xs`, which felt cramped under the avatar
+  // row on smaller screens. Added explicit marginTop for breathing room.
+  cardBottom: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginTop: 2,
+  },
   sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   sourceText: { fontSize: typography.xs, color: colors.textSecondary },
   actionButtons: { flexDirection: 'row', gap: spacing.sm },
   actionBtn: { backgroundColor: colors.primaryLight, padding: spacing.sm, borderRadius: 8 },
   whatsappBtn: { backgroundColor: '#E8FFF1' },
 
-  // Empty state
   emptyState: { alignItems: 'center', paddingTop: spacing.xxxl * 2, gap: spacing.sm },
   emptyText: { fontSize: typography.lg, fontWeight: typography.semiBold, color: colors.textSecondary },
   emptySubText: { fontSize: typography.sm, color: colors.textLight, textAlign: 'center' },
 });
 
 // ─────────────────────────────────────────────
-// Filter Modal Styles  (shared with AddLeadModal)
+// Filter Modal Styles (shared with AddLeadModal)
 // ─────────────────────────────────────────────
 const filterStyles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },

@@ -30,5 +30,7 @@ const notificationSchema = new mongoose.Schema(
 
 // Recent notifications jaldi nikalne ke liye
 notificationSchema.index({ user: 1, createdAt: -1 });
+// Unread-count / filtered lists by read state
+notificationSchema.index({ user: 1, isRead: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

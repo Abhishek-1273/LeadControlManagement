@@ -1,26 +1,42 @@
-// const { initializeApp, getApps, cert } = require('firebase-admin/app');
-// const { getMessaging } = require('firebase-admin/messaging');
-// const serviceAccount = require('../../serviceAccountKey.json');
-
-// if (!getApps().length) {
-//   initializeApp({
-//     credential: cert(serviceAccount),
-//   });
-// }
-
-// module.exports = { getMessaging };
-
-
-
 const { initializeApp, getApps, cert } = require('firebase-admin/app');
 const { getMessaging } = require('firebase-admin/messaging');
 
-if (!getApps().length) {
-  // Render pe file nahi hoti — env variable se lo
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  initializeApp({
-    credential: cert(serviceAccount),
-  });
+let initialized = false;
+
+// Lazily initialise Firebase Admin using credentials from the environment.
+// NEVER commit the service account JSON to the repo — set FIREBASE_SERVICE_ACCOUNT
+// (the full JSON, on a single line) in your host's environment variables instead.
+function ensureApp() {
+  if (initialized || getApps().length) {
+    initialized = true;
+    return;
+  }
+
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!raw) {
+    console.warn(
+      '[firebase] FIREBASE_SERVICE_ACCOUNT not set — push notifications disabled.'
+    );
+    return;
+  }
+
+  let serviceAccount;
+  try {
+    serviceAccount = JSON.parse(raw);
+  } catch {
+    console.error('[firebase] FIREBASE_SERVICE_ACCOUNT is not valid JSON.');
+    return;
+  }
+
+  initializeApp({ credential: cert(serviceAccount) });
+  initialized = true;
 }
 
-module.exports = { getMessaging };
+module.exports = {
+  // Returns a Firebase messaging instance, or null if Firebase is not configured.
+  getMessaging: () => {
+    ensureApp();
+    if (!initialized) return null;
+    return getMessaging();
+  },
+};

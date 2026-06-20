@@ -54,19 +54,21 @@ export default function AdminDashboardScreen() {
   const { user, logout } = useAuthStore();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { stats, employees, fetchAdminStats, fetchEmployees } = useAdminStore();
+  const { stats, employees, performanceData, monthlyTrend, fetchAdminStats, fetchEmployees, fetchPerformanceDashboard, fetchMonthlyTrend } = useAdminStore();
   const [refreshing, setRefreshing] = React.useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
       fetchAdminStats();
       fetchEmployees();
+      fetchPerformanceDashboard();
+      fetchMonthlyTrend();
     }, [])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchAdminStats(), fetchEmployees()]);
+    await Promise.all([fetchAdminStats(), fetchEmployees(), fetchPerformanceDashboard(), fetchMonthlyTrend()]);
     setRefreshing(false);
   };
 
@@ -83,17 +85,20 @@ export default function AdminDashboardScreen() {
     }]
   };
 
+  // Real last-6-months data from the backend (auto-rolls forward each month).
+  const hasTrendData = monthlyTrend.length > 0;
   const monthlyChartData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    labels: hasTrendData ? monthlyTrend.map((p) => p.label) : ['—'],
     datasets: [{
-      data: [20, 35, 28, 45, 32, stats.totalLeads || 0],
+      data: hasTrendData ? monthlyTrend.map((p) => p.count) : [0],
       color: (opacity = 1) => `rgba(0, 168, 107, ${opacity})`,
       strokeWidth: 2,
     }]
   };
 
-  const topEmployees = [...employees]
-    .sort((a, b) => (b.totalLeads || 0) - (a.totalLeads || 0))
+  // Rank by Booked Today, then by total booked
+  const topPerformers = [...performanceData]
+    .sort((a, b) => b.bookedToday - a.bookedToday || b.totalBooked - a.totalBooked)
     .slice(0, 5);
 
   return (
@@ -134,13 +139,13 @@ export default function AdminDashboardScreen() {
             onPress={() => navigation.navigate('AdminEmployees')} />
         </View>
 
-        {/* Stats Row 2 */}
+        {/* Stats Row 2 — today's status breakdown (not all-time) */}
         <View style={styles.statsRow}>
-          <StatCard icon="flame" label="Hot" value={stats.hot}
+          <StatCard icon="flame" label="Hot Today" value={stats.hot}
             bgColor="#FEF2F2" iconColor="#EF4444" />
-          <StatCard icon="sunny" label="Warm" value={stats.warm}
+          <StatCard icon="sunny" label="Warm Today" value={stats.warm}
             bgColor="#FFFBEB" iconColor="#F59E0B" />
-          <StatCard icon="checkmark-circle" label="Booked" value={stats.booked}
+          <StatCard icon="checkmark-circle" label="Booked Today" value={stats.booked}
             bgColor="#F0FFF4" iconColor="#059669" />
         </View>
 
@@ -148,9 +153,9 @@ export default function AdminDashboardScreen() {
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
             <Ionicons name="bar-chart" size={18} color={colors.primary} />
-            <Text style={styles.cardTitle}>Leads by Status</Text>
+            <Text style={styles.cardTitle}>Today's Leads by Status</Text>
           </View>
-          {stats.totalLeads > 0 ? (
+          {stats.todayLeads > 0 ? (
             <BarChart
               data={statusChartData}
               width={CHART_WIDTH}
@@ -186,53 +191,60 @@ export default function AdminDashboardScreen() {
           />
         </View>
 
-        {/* Employee Performance */}
+        {/* Top Performers */}
         <View style={styles.card}>
           <View style={styles.sectionHeaderWithAction}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="star" size={18} color={colors.primary} />
-              <Text style={styles.cardTitle}>Top Performers</Text>
+              <Ionicons name="trophy" size={18} color="#F59E0B" />
+              <Text style={styles.cardTitle}>Top Performers Today</Text>
             </View>
             <TouchableOpacity
               style={styles.seeAllBtn}
-              onPress={() => navigation.navigate('AdminEmployees')}
+              onPress={() => navigation.navigate('AdminPerformance')}
             >
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
 
-          {topEmployees.length === 0 ? (
+          {topPerformers.length === 0 ? (
             <View style={styles.emptyChart}>
               <Ionicons name="people-outline" size={48} color={colors.textLight} />
-              <Text style={styles.emptyText}>No employees yet</Text>
+              <Text style={styles.emptyText}>No data yet</Text>
             </View>
           ) : (
-            topEmployees.map((emp, index) => (
-              <TouchableOpacity
-                key={emp._id}
-                style={styles.empRow}
-                onPress={() => navigation.navigate('EmployeeDetail', { employeeId: emp._id })}
-              >
-                <View style={[styles.rankCircle,
-                index === 0 && { backgroundColor: '#FFD700' },
-                index === 1 && { backgroundColor: '#C0C0C0' },
-                index === 2 && { backgroundColor: '#CD7F32' },
-                ]}>
-                  <Text style={styles.rankText}>{index + 1}</Text>
+            topPerformers.map((perf, index) => {
+              const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
+              return (
+                <View key={perf.employee._id} style={styles.empRow}>
+                  <View style={[styles.rankCircle,
+                  { backgroundColor: rankColors[index] || colors.border }
+                  ]}>
+                    <Text style={styles.rankText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.empInfo}>
+                    <Text style={styles.empName}>{perf.employee.name}</Text>
+                    <Text style={styles.empEmail}>
+                      {perf.assignedToday} assigned • {perf.previousPending} pending
+                    </Text>
+                  </View>
+                  <View style={styles.empStats}>
+                    <Text style={[styles.empLeadCount, { color: '#059669' }]}>
+                      {perf.bookedToday}
+                    </Text>
+                    <Text style={styles.empLeadLabel}>booked</Text>
+                  </View>
+                  <View style={[styles.conversionPill,
+                  { backgroundColor: perf.conversionRate >= 50 ? '#ECFDF5' : '#FEF9E7' }
+                  ]}>
+                    <Text style={[styles.conversionText,
+                    { color: perf.conversionRate >= 50 ? '#059669' : '#F59E0B' }
+                    ]}>
+                      {perf.conversionRate}%
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.empInfo}>
-                  <Text style={styles.empName}>{emp.name}</Text>
-                  <Text style={styles.empEmail}>{emp.email}</Text>
-                </View>
-                <View style={styles.empStats}>
-                  <Text style={styles.empLeadCount}>{emp.totalLeads || 0}</Text>
-                  <Text style={styles.empLeadLabel}>leads</Text>
-                </View>
-                <View style={[styles.statusDot,
-                { backgroundColor: emp.isActive ? colors.primary : colors.error }
-                ]} />
-              </TouchableOpacity>
-            ))
+              );
+            })
           )}
         </View>
 
@@ -267,11 +279,12 @@ export default function AdminDashboardScreen() {
               <Text style={styles.quickLabel}>Employees</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.quickBtn} onPress={logout}>
-              <View style={[styles.quickIcon, { backgroundColor: '#FFF0F0' }]}>
-                <Ionicons name="log-out" size={22} color={colors.error} />
+            <TouchableOpacity style={styles.quickBtn}
+              onPress={() => navigation.navigate('LeadArchive')}>
+              <View style={[styles.quickIcon, { backgroundColor: '#F0FDF4' }]}>
+                <Ionicons name="archive" size={22} color="#059669" />
               </View>
-              <Text style={styles.quickLabel}>Logout</Text>
+              <Text style={styles.quickLabel}>Archive</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -391,12 +404,19 @@ const styles = StyleSheet.create({
   quickActions: {
     flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm,
   },
-  quickBtn: { alignItems: 'center', width: '22%'},
+  quickBtn: { alignItems: 'center', width: '22%' },
   quickIcon: {
     width: 52, height: 52, borderRadius: 16,
     justifyContent: 'center', alignItems: 'center',
   },
   quickLabel: {
     fontSize: 9, color: colors.textSecondary, alignContent: 'center', fontWeight: typography.medium,
+  },
+  conversionPill: {
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 10,
+  },
+  conversionText: {
+    fontSize: typography.xs, fontWeight: typography.bold,
   },
 });

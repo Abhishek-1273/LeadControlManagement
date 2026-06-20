@@ -104,11 +104,9 @@ function WhatsAppModal({
 function AppointmentCard({
   item,
   onWhatsApp,
-  onDelete,
 }: {
   item: Appointment;
   onWhatsApp: (a: Appointment) => void;
-  onDelete: (id: string) => void;
 }) {
   return (
     <View style={styles.card}>
@@ -153,9 +151,7 @@ function AppointmentCard({
           <Ionicons name="logo-whatsapp" size={16} color="#fff" />
           <Text style={styles.waBtnText}>Send on WhatsApp</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(item._id)}>
-          <Ionicons name="trash-outline" size={16} color={colors.error || '#EF4444'} />
-        </TouchableOpacity>
+
       </View>
     </View>
   );
@@ -164,7 +160,7 @@ function AppointmentCard({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function AppointmentsScreen() {
   const insets = useSafeAreaInsets();
-  const { appointments, fetchAppointments, deleteAppointment, isLoading } = useAdminStore();
+  const { appointments, fetchAppointments, isLoading } = useAdminStore();
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [waModalVisible, setWaModalVisible] = useState(false);
@@ -182,23 +178,6 @@ export default function AppointmentsScreen() {
     setRefreshing(false);
   };
 
-  const handleDelete = (id: string) => {
-    Alert.alert('Delete Appointment', 'Are you sure you want to delete this appointment?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteAppointment(id);
-            Toast.show({ type: 'success', text1: 'Appointment deleted' });
-          } catch {
-            Toast.show({ type: 'error', text1: 'Could not delete appointment' });
-          }
-        },
-      },
-    ]);
-  };
 
   const handleWhatsApp = (appt: Appointment) => {
     setSelectedAppt(appt);
@@ -246,7 +225,6 @@ export default function AppointmentsScreen() {
           <AppointmentCard
             item={item}
             onWhatsApp={handleWhatsApp}
-            onDelete={handleDelete}
           />
         )}
         contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 80 }}
@@ -278,7 +256,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
     backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  headerTitle: { fontSize: typography.lg, fontWeight: typography.bold as any, color: colors.text },
+  headerTitle: { fontSize: typography.lg, fontWeight: typography.bold as any, color: colors.textPrimary },
   headerSub: { fontSize: typography.sm, color: colors.textSecondary },
 
   searchBar: {
@@ -287,7 +265,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white, borderRadius: 12,
     borderWidth: 1, borderColor: colors.border,
   },
-  searchInput: { flex: 1, fontSize: typography.sm, color: colors.text },
+  searchInput: { flex: 1, fontSize: typography.sm, color: colors.textPrimary },
 
   card: {
     backgroundColor: colors.white, borderRadius: 14, padding: spacing.md,
@@ -302,7 +280,7 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: typography.md, fontWeight: typography.bold as any, color: colors.primary },
   cardHeaderInfo: { flex: 1 },
-  leadName: { fontSize: typography.md, fontWeight: typography.semiBold as any, color: colors.text },
+  leadName: { fontSize: typography.md, fontWeight: typography.semiBold as any, color: colors.textPrimary },
   leadPhone: { fontSize: typography.xs, color: colors.textSecondary, marginTop: 2 },
   statusBadge: { backgroundColor: '#059669' + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   statusText: { fontSize: typography.xs, color: '#059669', fontWeight: typography.semiBold as any },
@@ -313,7 +291,7 @@ const styles = StyleSheet.create({
   descBox: {
     backgroundColor: '#F3F4F6', borderRadius: 8, padding: 10, marginTop: spacing.xs,
   },
-  descText: { fontSize: typography.sm, color: colors.text },
+  descText: { fontSize: typography.sm, color: colors.textPrimary },
 
   cardActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
   waBtn: {
@@ -327,7 +305,7 @@ const styles = StyleSheet.create({
   },
 
   emptyState: { alignItems: 'center', paddingTop: 80, gap: spacing.sm },
-  emptyTitle: { fontSize: typography.lg, fontWeight: typography.bold as any, color: colors.text },
+  emptyTitle: { fontSize: typography.lg, fontWeight: typography.bold as any, color: colors.textPrimary },
   emptySubtitle: { fontSize: typography.sm, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 32 },
 
   // WhatsApp Modal
@@ -341,14 +319,14 @@ const styles = StyleSheet.create({
     width: 34, height: 34, borderRadius: 17,
     backgroundColor: '#25D366' + '20', justifyContent: 'center', alignItems: 'center',
   },
-  modalTitle: { flex: 1, fontSize: typography.md, fontWeight: typography.bold as any, color: colors.text },
+  modalTitle: { flex: 1, fontSize: typography.md, fontWeight: typography.bold as any, color: colors.textPrimary },
 
   recipientRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm },
   recipientText: { fontSize: typography.sm, color: colors.textSecondary },
 
   waTextInput: {
     borderWidth: 1, borderColor: colors.border, borderRadius: 12,
-    padding: 12, minHeight: 160, fontSize: typography.sm, color: colors.text,
+    padding: 12, minHeight: 160, fontSize: typography.sm, color: colors.textPrimary,
     backgroundColor: '#F9FAFB', marginBottom: spacing.md,
   },
   waActions: { flexDirection: 'row', gap: spacing.sm },

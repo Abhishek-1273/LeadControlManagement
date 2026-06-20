@@ -17,9 +17,13 @@ router.use(auth);
 router.get('/dashboard',            ctrl.getDashboardStats);
 router.get('/followups/today',      ctrl.getTodayFollowUps);
 router.patch('/followup/:followUpId/complete', ctrl.completeFollowUp);
-router.delete('/bulk',              ctrl.bulkDeleteLeads);
 
-// Appointment — employee can book for their own lead (no adminOnly here)
+// Employee-specific lead lists (today / pending / booked)
+router.get('/employee-today',       ctrl.getEmployeeTodayLeads);
+router.get('/employee-pending',     ctrl.getEmployeePendingLeads);
+router.get('/employee-booked',      ctrl.getEmployeeBookedLeads);
+
+// Appointment — employee can book for their own lead
 router.post('/appointments', appointmentCtrl.createAppointment);
 
 // Lead CRUD
@@ -34,6 +38,5 @@ router.patch ('/:id/pin',      v.idRule,             validate, ctrl.togglePin);
 router.patch ('/:id/info',     v.updateInfoRules,    validate, ctrl.updateLeadInfo);
 router.post  ('/:id/followup', v.followUpRules,      validate, ctrl.addFollowUp);
 
-router.delete('/:id', ctrl.deleteLead);
 
 module.exports = router;

@@ -49,4 +49,9 @@ const leadSchema = new mongoose.Schema({
 // Extra compound index: fast lookup by phone + secondaryPhone together
 leadSchema.index({ secondaryPhone: 1 }, { sparse: true });
 
+leadSchema.index({ assignedTo: 1, createdAt: -1 });
+leadSchema.index({ assignedTo: 1, status: 1 });
+leadSchema.index({ status: 1, updatedAt: -1 });
+leadSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model('Lead', leadSchema);

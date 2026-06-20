@@ -14,21 +14,25 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Stat Card with subtle gradient
 const StatCard = ({
-  icon, label, value, bgColor, iconColor
+  icon, label, value, bgColor, iconColor, onPress,
 }: {
   icon: string;
   label: string;
   value: number;
   bgColor: string;
   iconColor: string;
+  onPress?: () => void;
 }) => (
-  <View style={[styles.statCard, { backgroundColor: bgColor }]}>
-    <Ionicons name={icon as any} size={24} color={iconColor} />
+  <TouchableOpacity
+    style={[styles.statCard, { backgroundColor: bgColor }]}
+    onPress={onPress}
+    activeOpacity={onPress ? 0.7 : 1}
+  >
+    <Ionicons name={icon as any} size={22} color={iconColor} />
     <Text style={styles.statValue}>{value}</Text>
     <Text style={styles.statLabel}>{label}</Text>
-  </View>
+  </TouchableOpacity>
 );
 
 export default function DashboardScreen() {
@@ -36,7 +40,12 @@ export default function DashboardScreen() {
   const navigation = useNavigation<any>();
   const { height } = useWindowDimensions();
   const { user } = useAuthStore();
-  const { stats, fetchDashboardStats, followUps, fetchTodayFollowUps } = useLeadStore();
+  const {
+    stats,
+    fetchDashboardStats,
+    followUps,
+    fetchTodayFollowUps,
+  } = useLeadStore();
   const [refreshing, setRefreshing] = React.useState(false);
 
   useFocusEffect(
@@ -46,6 +55,7 @@ export default function DashboardScreen() {
       return () => { };
     }, [])
   );
+
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([fetchDashboardStats(), fetchTodayFollowUps()]);
@@ -59,9 +69,20 @@ export default function DashboardScreen() {
     return 'Good Evening';
   };
 
+  const goToTodayLeads = () => {
+    navigation.navigate('Leads', { screen: 'LeadList', params: { filter: 'today' } });
+  };
+
+  const goToPendingLeads = () => {
+    navigation.navigate('Leads', { screen: 'LeadList', params: { filter: 'pending' } });
+  };
+
+  const goToBookedLeads = () => {
+    navigation.navigate('Leads', { screen: 'LeadList', params: { filter: 'booked' } });
+  };
+
   return (
-    <SafeAreaView style={[styles.container, { height }]}
-    edges={['top']}>
+    <SafeAreaView style={[styles.container, { height }]} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
@@ -79,126 +100,139 @@ export default function DashboardScreen() {
             <Text style={styles.greeting}>
               {getGreeting()}, {user?.name?.split(' ')[0]}
             </Text>
-            <Text style={styles.subGreeting}>Here's your overview</Text>
+            <Text style={styles.subGreeting}>Here's your work for today</Text>
           </View>
         </View>
 
-        {/* Row 1 */}
-        <View style={styles.statsRow}>
-          <StatCard
-            icon="people"
-            label="Total Leads"
-            value={stats.totalLeads}
-            bgColor="#E8F8F2"
-            iconColor={colors.primary}
-          />
-          <StatCard
-            icon="calendar"
-            label="Today's Follow-ups"
-            value={stats.todayFollowUps}
-            bgColor="#FEF9E7"
-            iconColor="#F59E0B"
-          />
-          <StatCard
-            icon="add-circle"
-            label="New Today"
-            value={stats.newToday}
-            bgColor="#EEF2FF"
-            iconColor="#6366F1"
-          />
+        {/* ── PRIMARY: Today's Leads + Previous Pending ── */}
+        <View style={styles.primarySection}>
+          <Text style={styles.sectionTitle}>Active Work</Text>
+
+          <View style={styles.primaryRow}>
+            {/* Today's Leads */}
+            <TouchableOpacity
+              style={[styles.primaryCard, { backgroundColor: '#E8F8F2', borderColor: colors.primary }]}
+              onPress={goToTodayLeads}
+              activeOpacity={0.8}
+            >
+              <View style={styles.primaryCardIcon}>
+                <Ionicons name="today" size={28} color={colors.primary} />
+              </View>
+              <Text style={[styles.primaryCardValue, { color: colors.primary }]}>
+                {stats.todayLeadsCount}
+              </Text>
+              <Text style={styles.primaryCardLabel}>Today's Leads</Text>
+              <View style={styles.goArrow}>
+                <Ionicons name="arrow-forward" size={14} color={colors.primary} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Previous Pending Leads */}
+            <TouchableOpacity
+              style={[styles.primaryCard, { backgroundColor: '#FEF9E7', borderColor: '#F59E0B' }]}
+              onPress={goToPendingLeads}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.primaryCardIcon, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="hourglass" size={28} color="#F59E0B" />
+              </View>
+              <Text style={[styles.primaryCardValue, { color: '#F59E0B' }]}>
+                {stats.previousPendingCount}
+              </Text>
+              <Text style={styles.primaryCardLabel}>Previous Pending</Text>
+              <View style={[styles.goArrow, { borderColor: '#F59E0B' }]}>
+                <Ionicons name="arrow-forward" size={14} color="#F59E0B" />
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Booked — all dates */}
+          <TouchableOpacity
+            style={[styles.bookedCard]}
+            onPress={goToBookedLeads}
+            activeOpacity={0.8}
+          >
+            <View style={styles.bookedLeft}>
+              <Ionicons name="checkmark-circle" size={24} color="#059669" />
+              <View style={{ marginLeft: spacing.sm }}>
+                <Text style={styles.bookedLabel}>Booked</Text>
+                <Text style={styles.bookedSub}>All your booked leads</Text>
+              </View>
+            </View>
+            <Text style={styles.bookedValue}>{stats.booked}</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Row 2 */}
-        <View style={styles.statsRow}>
-          <StatCard
-            icon="flame"
-            label="Hot"
-            value={stats.hot}
-            bgColor="#FEF2F2"
-            iconColor="#EF4444"
-          />
-          <StatCard
-            icon="checkmark-circle"
-            label="Booked"
-            value={stats.booked}
-            bgColor="#F0F9FF"
-            iconColor="#059669"
-          />
-          <StatCard
-            icon="time"
-            label="Pending"
-            value={stats.pending ?? 0}
-            bgColor="#FFF7ED"
-            iconColor="#F97316"
-          />
-        </View>
-
-        {/* Lead Status Breakdown */}
+        {/* ── Status breakdown ── */}
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
             <Ionicons name="bar-chart" size={18} color={colors.primary} />
-            <Text style={styles.cardTitle}>Lead Status Breakdown</Text>
+            <Text style={styles.cardTitle}>My Lead Status</Text>
           </View>
 
-          {stats.totalLeads === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="bar-chart-outline" size={48}
-                color={colors.textLight} />
-              <Text style={styles.emptyText}>No data available</Text>
-              <Text style={styles.emptySubText}>
-                Leads will appear here once assigned
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.statusGrid}>
-              {[
-                { label: '🔥 Hot', count: stats.hot, color: '#EF4444' },
-                { label: '🌤 Warm', count: stats.warm, color: '#F59E0B' },
-                { label: '❄️ Cold', count: stats.cold, color: '#3B82F6' },
-                { label: '📅 Follow Up', count: stats.followUp, color: '#8B5CF6' },
-                { label: '✅ Booked', count: stats.booked, color: '#059669' },
-              ].map((item) => (
-                <View key={item.label} style={styles.statusItem}>
-                  <View style={[styles.statusDot,
-                  { backgroundColor: item.color }]} />
-                  <View style={styles.statusInfo}>
-                    <Text style={styles.statusLabel}>{item.label}</Text>
-                    <View style={styles.progressBarBg}>
-                      <View style={[
-                        styles.progressBarFill,
-                        {
-                          backgroundColor: item.color,
-                          width: `${stats.totalLeads > 0
-                            ? Math.min((item.count / stats.totalLeads) * 100, 100)
-                            : 0}%` as any,
-                        }
-                      ]} />
-                    </View>
-                  </View>
-                  <Text style={[styles.statusCount,
-                  { color: item.color }]}>
-                    {item.count}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
+          <View style={styles.statsRow}>
+            <StatCard
+              icon="flame"
+              label="Hot"
+              value={stats.hot}
+              bgColor="#FEF2F2"
+              iconColor="#EF4444"
+            />
+            <StatCard
+              icon="partly-sunny"
+              label="Warm"
+              value={stats.warm}
+              bgColor="#FEF9E7"
+              iconColor="#F59E0B"
+            />
+            <StatCard
+              icon="snow"
+              label="Cold"
+              value={stats.cold}
+              bgColor="#EFF6FF"
+              iconColor="#3B82F6"
+            />
+          </View>
+          <View style={[styles.statsRow, { marginTop: spacing.sm }]}>
+            <StatCard
+              icon="calendar"
+              label="Follow Up"
+              value={stats.followUp}
+              bgColor="#F3E8FF"
+              iconColor="#8B5CF6"
+            />
+            <StatCard
+              icon="checkmark-circle"
+              label="All Booked"
+              value={stats.booked}
+              bgColor="#ECFDF5"
+              iconColor="#059669"
+            />
+            <StatCard
+              icon="people"
+              label="Total"
+              value={stats.totalLeads}
+              bgColor="#F0F9FF"
+              iconColor={colors.primary}
+            />
+          </View>
         </View>
 
-        {/* Today's Follow-ups */}
+        {/* ── Today's Follow-ups ── */}
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
             <Ionicons name="time" size={18} color={colors.primary} />
             <Text style={styles.cardTitle}>Today's Follow-ups</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{stats.todayFollowUps}</Text>
-            </View>
+            {stats.todayFollowUps > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{stats.todayFollowUps}</Text>
+              </View>
+            )}
           </View>
 
           {followUps.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="calendar-outline" size={48}
-                color={colors.textLight} />
+              <Ionicons name="calendar-outline" size={40} color={colors.textLight} />
               <Text style={styles.emptyText}>No follow-ups today</Text>
             </View>
           ) : (
@@ -233,20 +267,14 @@ export default function DashboardScreen() {
             </View>
           )}
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.background,
-  },
+  container: { backgroundColor: colors.background },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: spacing.base,
     paddingTop: spacing.base,
     paddingBottom: spacing.lg,
@@ -261,37 +289,111 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
-  logoutBtn: {
-    backgroundColor: colors.white,
-    padding: spacing.sm,
-    borderRadius: 10,
+  sectionTitle: {
+    fontSize: typography.md,
+    fontWeight: typography.bold,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+  },
+  primarySection: {
+    paddingHorizontal: spacing.base,
+    marginBottom: spacing.lg,
+  },
+  primaryRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  primaryCard: {
+    flex: 1,
+    borderRadius: 16,
+    padding: spacing.md,
+    alignItems: 'center',
+    borderWidth: 1.5,
     elevation: 2,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    position: 'relative',
+    minHeight: 120,
+    justifyContent: 'center',
+  },
+  primaryCardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  primaryCardValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    lineHeight: 38,
+  },
+  primaryCardLabel: {
+    fontSize: typography.xs,
+    color: colors.textSecondary,
+    fontWeight: typography.medium,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  goArrow: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bookedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ECFDF5',
+    borderRadius: 14,
+    padding: spacing.md,
+    borderWidth: 1.5,
+    borderColor: '#059669',
+  },
+  bookedLeft: { flexDirection: 'row', alignItems: 'center' },
+  bookedLabel: {
+    fontSize: typography.base,
+    fontWeight: typography.semiBold,
+    color: '#065F46',
+  },
+  bookedSub: {
+    fontSize: typography.xs,
+    color: '#059669',
+    marginTop: 1,
+  },
+  bookedValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#059669',
   },
   statsRow: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.base,
     gap: spacing.sm,
-    marginBottom: spacing.lg,
-    marginTop: spacing.xs,
   },
   statCard: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: 14,
     padding: spacing.sm,
     alignItems: 'center',
     gap: 4,
-    minHeight: 90,
-    elevation: 2,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    minHeight: 80,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
   },
   statValue: {
     fontSize: typography.xl,
@@ -306,11 +408,11 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
     marginHorizontal: spacing.base,
-    marginVertical: spacing.lg,
+    marginVertical: spacing.sm,
     borderRadius: 16,
     padding: spacing.base,
     elevation: 2,
-    shadowColor: colors.shadow,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -320,72 +422,14 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   cardTitle: {
     fontSize: typography.md,
     fontWeight: typography.semiBold,
     color: colors.textPrimary,
     flex: 1,
-  },
-  followUpList: { gap: spacing.sm, marginTop: spacing.sm },
-  followUpItem: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.background,
-    padding: spacing.md, borderRadius: 12,
-    borderLeftWidth: 3, borderLeftColor: colors.primary,
-  },
-  followUpLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  timeCircle: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  followUpName: {
-    fontSize: typography.sm, fontWeight: typography.semiBold,
-    color: colors.textPrimary,
-  },
-  followUpTime: { fontSize: typography.xs, color: colors.primary },
-  followUpNote: {
-    fontSize: typography.xs, color: colors.textSecondary,
-    maxWidth: 100,
-  },
-  statusGrid: {
-    gap: spacing.md,
-    marginTop: spacing.md,
-  },
-  statusItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    backgroundColor: '#FAFAFA',
-    borderRadius: 12,
-  },
-  statusDot: {
-    width: 10, height: 10, borderRadius: 5,
-  },
-  statusInfo: { flex: 1 },
-  statusLabel: {
-    fontSize: typography.xs,
-    color: colors.textSecondary,
-    fontWeight: typography.medium,
-    marginBottom: 4,
-  },
-  progressBarBg: {
-    height: 6, backgroundColor: colors.borderLight,
-    borderRadius: 3, overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%', borderRadius: 3,
-  },
-  statusCount: {
-    fontSize: typography.sm,
-    fontWeight: typography.bold,
-    minWidth: 24, textAlign: 'right',
   },
   badge: {
     backgroundColor: colors.primary,
@@ -398,19 +442,44 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: typography.bold,
   },
+  followUpList: { gap: spacing.sm },
+  followUpItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  followUpLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  timeCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  followUpName: {
+    fontSize: typography.sm,
+    fontWeight: typography.semiBold,
+    color: colors.textPrimary,
+  },
+  followUpTime: { fontSize: typography.xs, color: colors.primary },
+  followUpNote: {
+    fontSize: typography.xs,
+    color: colors.textSecondary,
+    maxWidth: 100,
+  },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.lg,
     gap: spacing.sm,
   },
   emptyText: {
-    fontSize: typography.base,
-    fontWeight: typography.medium,
-    color: colors.textSecondary,
-  },
-  emptySubText: {
     fontSize: typography.sm,
-    color: colors.textLight,
-    textAlign: 'center',
+    color: colors.textSecondary,
   },
 });

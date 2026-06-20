@@ -14,7 +14,17 @@ import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import axiosInstance from '../../api/axiosInstance';
 import Toast from 'react-native-toast-message';
+import {
+  LayoutList,
+  Flame,
+  Target,
+  Snowflake,
+  PhoneCall,
+  CircleCheckBig,
+  LucideIcon,
+} from 'lucide-react-native';
 
+// ─────────────────────────────────────────────
 const STATUS_COLORS: Record<string, string> = {
   'Hot': '#EF4444',
   'Warm': '#F59E0B',
@@ -23,13 +33,20 @@ const STATUS_COLORS: Record<string, string> = {
   'Booked': '#059669',
 };
 
-const STATUS_FILTERS = [
-  { label: 'All', value: 'All' },
-  { label: '🔥 Hot', value: 'Hot' },
-  { label: '🌤 Warm', value: 'Warm' },
-  { label: '❄️ Cold', value: 'Cold' },
-  { label: '📅 Follow Up', value: 'Follow Up' },
-  { label: '✅ Booked', value: 'Booked' },
+type StatusFilter = {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+  color: string;
+};
+
+const STATUS_FILTERS: StatusFilter[] = [
+  { label: 'All', value: 'All', icon: LayoutList, color: colors.textSecondary },
+  { label: 'Hot', value: 'Hot', icon: Flame, color: '#EF4444' },
+  { label: 'Warm', value: 'Warm', icon: Target, color: '#F59E0B' },
+  { label: 'Cold', value: 'Cold', icon: Snowflake, color: '#3B82F6' },
+  { label: 'Follow Up', value: 'Follow Up', icon: PhoneCall, color: '#8B5CF6' },
+  { label: 'Booked', value: 'Booked', icon: CircleCheckBig, color: '#059669' },
 ];
 
 const PHONE_REGEX = /^\d{10}$/;
@@ -56,19 +73,16 @@ function AddLeadModal({
   const [errors, setErrors] = useState<Partial<typeof EMPTY_FORM & { assignedTo: string }>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Employee list for assign picker
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [empLoading, setEmpLoading] = useState(false);
 
-  // Fetch employees when modal opens
   useEffect(() => {
     if (!visible) return;
     setEmpLoading(true);
     axiosInstance.get('/admin/employees')
       .then((res) => {
-        // API returns array directly or { employees: [...] }
         const list: Employee[] = Array.isArray(res.data)
           ? res.data
           : res.data.employees ?? [];
@@ -146,7 +160,6 @@ function AddLeadModal({
         <View style={addStyles.sheet}>
           <View style={addStyles.handle} />
 
-          {/* Header */}
           <View style={addStyles.sheetHeader}>
             <Text style={addStyles.sheetTitle}>Add New Lead</Text>
             <TouchableOpacity onPress={resetAndClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -160,7 +173,6 @@ function AddLeadModal({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* REQUIRED */}
             <Text style={addStyles.sectionLabel}>REQUIRED</Text>
 
             <Text style={addStyles.label}>👤 Full Name</Text>
@@ -187,7 +199,6 @@ function AddLeadModal({
             />
             {errors.primaryPhone ? <Text style={addStyles.errText}>{errors.primaryPhone}</Text> : null}
 
-            {/* OPTIONAL */}
             <Text style={[addStyles.sectionLabel, { marginTop: spacing.md }]}>OPTIONAL</Text>
 
             <Text style={addStyles.label}>📱 Secondary Phone</Text>
@@ -237,7 +248,6 @@ function AddLeadModal({
               maxLength={80}
             />
 
-            {/* Assign to Employee */}
             <Text style={[addStyles.sectionLabel, { marginTop: spacing.md }]}>ASSIGN</Text>
             <Text style={addStyles.label}>👔 Assign to Employee</Text>
 
@@ -255,7 +265,6 @@ function AddLeadModal({
                   <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
 
-                {/* Employee picker inline list */}
                 {showPicker && (
                   <View style={addStyles.pickerList}>
                     <TouchableOpacity
@@ -290,7 +299,6 @@ function AddLeadModal({
             )}
           </ScrollView>
 
-          {/* Footer */}
           <View style={addStyles.footer}>
             <TouchableOpacity style={addStyles.cancelBtn} onPress={resetAndClose}>
               <Text style={addStyles.cancelText}>Cancel</Text>
@@ -322,11 +330,19 @@ export default function AdminLeadsScreen() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
+  // Today's date range for filtering
+  const getTodayFilter = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today.toISOString().split('T')[0];
+  };
+
   useFocusEffect(
-    React.useCallback(() => { fetchLeads(); }, [])
+    React.useCallback(() => {
+      fetchLeads({ dateFrom: getTodayFilter(), dateTo: getTodayFilter() });
+    }, [])
   );
 
   useEffect(() => {
@@ -334,6 +350,8 @@ export default function AdminLeadsScreen() {
       fetchLeads({
         search: search || undefined,
         status: activeFilter !== 'All' ? activeFilter as any : undefined,
+        dateFrom: getTodayFilter(),
+        dateTo: getTodayFilter(),
       });
     }, 400);
     return () => clearTimeout(timer);
@@ -341,7 +359,7 @@ export default function AdminLeadsScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchLeads();
+    await fetchLeads({ dateFrom: getTodayFilter(), dateTo: getTodayFilter() });
     setRefreshing(false);
   };
 
@@ -352,57 +370,13 @@ export default function AdminLeadsScreen() {
       text2: `${leadName} has been added successfully`,
       visibilityTime: 2500,
     });
-    await fetchLeads();
+    // Re-fetch with the same Today filter used everywhere else on this screen —
+    // without it, this was silently pulling in every lead ever created (old
+    // leads included) right after adding a new one.
+    await fetchLeads({ dateFrom: getTodayFilter(), dateTo: getTodayFilter() });
   };
 
-  const confirmBulkDelete = (days: number) => {
-    const label = days === 1 ? '1 day' : days === 30 ? '1 month' : '6 months';
-    Alert.alert('Are you sure?', `All leads older than ${label} will be permanently deleted. This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: async () => {
-          setBulkDeleting(true);
-          try {
-            const res = await axiosInstance.delete(`/leads/bulk?days=${days}`);
-            fetchLeads();
-            Toast.show({ type: 'success', text1: 'Deleted ✅', text2: `${res.data.deletedCount} leads deleted` });
-          } catch {
-            Toast.show({ type: 'error', text1: 'Failed ❌', text2: 'Could not delete leads' });
-          } finally {
-            setBulkDeleting(false);
-          }
-        },
-      },
-    ]);
-  };
 
-  const handleBulkDelete = () => {
-    Alert.alert('Bulk Delete Leads', 'Delete leads older than...', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: '1 Day', onPress: () => confirmBulkDelete(1) },
-      { text: '1 Month', onPress: () => confirmBulkDelete(30) },
-      { text: '6 Months', onPress: () => confirmBulkDelete(180) },
-    ]);
-  };
-
-  const handleDeleteLead = (item: any) => {
-    Alert.alert('Delete Lead', `Delete "${item.name}"? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: async () => {
-          try {
-            await axiosInstance.delete(`/leads/${item._id}`);
-            fetchLeads();
-            Toast.show({ type: 'success', text1: 'Lead deleted ✅' });
-          } catch {
-            Toast.show({ type: 'error', text1: 'Failed ❌', text2: 'Could not delete lead' });
-          }
-        },
-      },
-    ]);
-  };
 
   const renderLead = ({ item }: { item: any }) => {
     const statusColor = STATUS_COLORS[item.status] || colors.primary;
@@ -442,9 +416,7 @@ export default function AdminLeadsScreen() {
               <TouchableOpacity style={[styles.actionBtn, styles.waBtn]} onPress={() => Linking.openURL(`https://wa.me/91${item.phone}`)}>
                 <Ionicons name="logo-whatsapp" size={15} color="#25D366" />
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => handleDeleteLead(item)}>
-                <Ionicons name="trash-outline" size={15} color="#EF4444" />
-              </TouchableOpacity>
+
             </View>
           </View>
         </View>
@@ -459,23 +431,17 @@ export default function AdminLeadsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>
-            All Leads <Text style={styles.countInline}>({leads.length})</Text>
+            Today's Leads <Text style={styles.countInline}>({leads.length})</Text>
           </Text>
           <View style={styles.headerRight}>
-            {/* Add Lead */}
             <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
               <Ionicons name="person-add" size={18} color={colors.white} />
             </TouchableOpacity>
-            {/* Bulk Delete */}
             <TouchableOpacity
-              style={[styles.bulkDeleteBtn, bulkDeleting && { opacity: 0.5 }]}
-              onPress={handleBulkDelete}
-              disabled={bulkDeleting}
+              style={styles.archiveBtn}
+              onPress={() => navigation.navigate('LeadArchive')}
             >
-              {bulkDeleting
-                ? <ActivityIndicator size={15} color="#EF4444" />
-                : <Ionicons name="trash-outline" size={18} color="#EF4444" />
-              }
+              <Ionicons name="archive-outline" size={18} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -497,23 +463,42 @@ export default function AdminLeadsScreen() {
           )}
         </View>
 
-        {/* Filter Chips */}
         <ScrollView
-          horizontal showsHorizontalScrollIndicator={false}
+          horizontal
+          showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filtersContainer}
           style={styles.filtersScroll}
         >
-          {STATUS_FILTERS.map((f) => (
-            <TouchableOpacity
-              key={f.value}
-              style={[styles.filterChip, activeFilter === f.value && styles.filterChipActive]}
-              onPress={() => setActiveFilter(f.value)}
-            >
-              <Text style={[styles.filterText, activeFilter === f.value && styles.filterTextActive]}>
-                {f.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {STATUS_FILTERS.map((f) => {
+            const Icon = f.icon;
+            const isActive = activeFilter === f.value;
+            return (
+              <TouchableOpacity
+                key={f.value}
+                style={[
+                  styles.filterChip,
+                  isActive && {
+                    backgroundColor: `${f.color}15`,
+                    borderColor: f.color,
+                  },
+                ]}
+                onPress={() => setActiveFilter(f.value)}
+              >
+                <Icon size={15} color={f.color} />
+                <Text
+                  style={[
+                    styles.filterText,
+                    {
+                      color: isActive ? f.color : colors.textSecondary,
+                      fontWeight: isActive ? '700' : '500',
+                    },
+                  ]}
+                >
+                  {f.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         {/* Leads List */}
@@ -532,7 +517,6 @@ export default function AdminLeadsScreen() {
           renderItem={renderLead}
         />
 
-        {/* Add Lead Modal */}
         <AddLeadModal
           visible={showAddModal}
           onClose={() => setShowAddModal(false)}
@@ -544,6 +528,9 @@ export default function AdminLeadsScreen() {
   );
 }
 
+// ─────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────
 const styles = StyleSheet.create({
   wrapper: { flex: 1, backgroundColor: colors.background },
   safeArea: { flex: 1 },
@@ -566,6 +553,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF0F0', padding: spacing.sm,
     borderRadius: 10, borderWidth: 1, borderColor: '#FFCDD2',
   },
+  archiveBtn: {
+    backgroundColor: colors.primaryLight, padding: spacing.sm,
+    borderRadius: 10, borderWidth: 1, borderColor: colors.primary + '40',
+  },
   deleteBtn: { backgroundColor: '#FFF0F0' },
   searchContainer: {
     flexDirection: 'row', alignItems: 'center',
@@ -575,19 +566,21 @@ const styles = StyleSheet.create({
     gap: spacing.sm, elevation: 1,
   },
   searchInput: { flex: 1, fontSize: typography.base, color: colors.textPrimary },
+
   filtersScroll: { maxHeight: 60, flexGrow: 0 },
   filtersContainer: {
-    paddingHorizontal: spacing.base, paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.base, paddingVertical: spacing.md,
     gap: spacing.sm, flexDirection: 'row', alignItems: 'center',
   },
   filterChip: {
     paddingHorizontal: spacing.md, paddingVertical: spacing.xs,
-    borderRadius: 20, backgroundColor: colors.white, borderWidth: 1,
-    borderColor: colors.border, height: 34, justifyContent: 'center', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: 20, backgroundColor: colors.white,
+    borderWidth: 1, borderColor: colors.border,
+    height: 36, justifyContent: 'center',
   },
-  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  filterText: { fontSize: typography.sm, color: colors.textSecondary },
-  filterTextActive: { color: colors.white, fontWeight: typography.bold },
+  filterText: { fontSize: typography.sm, color: colors.textSecondary, fontWeight: typography.medium },
+
   listContent: {
     paddingHorizontal: spacing.base, paddingBottom: spacing.xl,
     paddingTop: spacing.xs, gap: spacing.sm,

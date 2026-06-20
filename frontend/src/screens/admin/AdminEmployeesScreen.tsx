@@ -135,11 +135,11 @@ export default function AdminEmployeesScreen() {
   {/* Row 1: Status badge + Edit btn */}
   <View style={styles.empActionsTop}>
     <View style={[styles.statusBadge,
-      { backgroundColor: item.isActive ? '#E8F8F2' : '#FFF0F0' }]}>
+      { backgroundColor: item.isActive ? '#c4f9da' : '#FFF0F0' }]}>
       <View style={[styles.statusDot,
-        { backgroundColor: item.isActive ? colors.primary : colors.error }]} />
+        { backgroundColor: item.isActive ? colors.success : colors.error }]} />
       <Text style={[styles.statusText,
-        { color: item.isActive ? colors.primary : colors.error }]}>
+        { color: item.isActive ? colors.success : colors.error }]}>
         {item.isActive ? 'Active' : 'Inactive'}
       </Text>
     </View>
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     justifyContent: 'center', alignItems: 'center',
   },
-  avatarInactive: { backgroundColor: colors.borderLight },
+  avatarInactive: { backgroundColor: colors.error },
   avatarText: {
     fontSize: typography.lg, fontWeight: typography.bold,
     color: colors.primary,

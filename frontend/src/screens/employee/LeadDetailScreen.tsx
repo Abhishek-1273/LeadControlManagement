@@ -150,19 +150,19 @@ export default function LeadDetailScreen() {
   };
 
   const handlePin = async () => {
-  const wasPinned = lead.isPinned; 
-  try {
-    await togglePin(leadId);
-    Toast.show({
-      type: 'success',
-      text1: wasPinned ? 'Unpinned' : 'Pinned 📌',
-      text2: wasPinned ? 'Lead removed from pinned' : 'Lead added to pinned',
-      visibilityTime: 1500,
-    });
-  } catch {
-    Toast.show({ type: 'error', text1: 'Failed ❌', text2: 'Could not update pin status' });
-  }
-};
+    const wasPinned = lead.isPinned;
+    try {
+      await togglePin(leadId);
+      Toast.show({
+        type: 'success',
+        text1: wasPinned ? 'Unpinned' : 'Pinned 📌',
+        text2: wasPinned ? 'Lead removed from pinned' : 'Lead added to pinned',
+        visibilityTime: 1500,
+      });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Failed ❌', text2: 'Could not update pin status' });
+    }
+  };
 
   const handleVisitorDate = async (selectedDate: Date) => {
     try {
@@ -239,8 +239,9 @@ export default function LeadDetailScreen() {
           </View>
           <Text style={styles.leadName}>{lead.name}</Text>
           <Text style={styles.leadPhone}>{lead.phone}</Text>
-
-          {/* Status Badge */}
+          {lead.secondaryPhone ? (
+            <Text style={styles.leadPhone}>📱 {lead.secondaryPhone}</Text>
+          ) : null}
           <TouchableOpacity
             style={[styles.statusBadge,
             { backgroundColor: statusColor + '20' }]}
@@ -328,7 +329,10 @@ export default function LeadDetailScreen() {
             </View>
           </View>
           <InfoRow icon="person" label="Full Name" value={lead.name} />
-          <InfoRow icon="call" label="Phone" value={lead.phone} />
+          <InfoRow icon="call" label="Primary Phone" value={lead.phone} />
+          {lead.secondaryPhone ? (
+            <InfoRow icon="call-outline" label="Secondary Phone" value={lead.secondaryPhone} />
+          ) : null}
           <InfoRow icon="mail" label="Email" value={lead.email || ''} />
           <InfoRow icon="location" label="City" value={lead.city || ''} />
           <InfoRow

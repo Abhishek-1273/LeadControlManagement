@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-
 // Admin Screens
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import AdminLeadsScreen from '../screens/admin/AdminLeadsScreen';
@@ -15,6 +14,11 @@ import AddEmployeeScreen from '../screens/admin/AddEmployeeScreen';
 import EmployeeDetailScreen from '../screens/admin/EmployeeDetailScreen';
 import AdminLeadDetailScreen from '../screens/admin/AdminLeadDetailScreen';
 import AssignLeadScreen from '../screens/admin/AssignLeadScreen';
+import AppointmentsScreen from '../screens/admin/AppointmentsScreen';
+import PerformanceDashboardScreen from '../screens/admin/PerformanceDashboardScreen';
+import LeadArchiveScreen from '../screens/admin/LeadArchiveScreen';
+
+// Common Screens
 import SidebarScreen from '../screens/common/SidebarScreen';
 import EditProfileScreen from '../screens/common/EditProfileScreen';
 import NotificationsScreen from '../screens/common/NotificationsScreen';
@@ -24,13 +28,12 @@ import TermsScreen from '../screens/common/TermsScreen';
 import PrivacyScreen from '../screens/common/PrivacyScreen';
 import HelpSupportScreen from '../screens/common/HelpSupportScreen';
 import SendNotificationScreen from '../screens/admin/SendNotificationScreen';
-import AppointmentsScreen from '../screens/admin/AppointmentsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 function AdminTabs() {
-    const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -40,8 +43,8 @@ function AdminTabs() {
         tabBarStyle: {
           backgroundColor: colors.white,
           borderTopColor: colors.border,
-          height: 60 + insets.bottom, 
-          paddingBottom: insets.bottom + 4, 
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom + 4,
           paddingTop: 8,
           elevation: 8,
         },
@@ -50,21 +53,22 @@ function AdminTabs() {
           if (route.name === 'AdminDashboard') {
             iconName = focused ? 'grid' : 'grid-outline';
           } else if (route.name === 'AdminLeads') {
-            iconName = focused ? 'people' : 'people-outline';
-          } else if (route.name === 'AdminEmployees') {
-            iconName = focused ? 'person-circle' : 'person-circle-outline';
+            iconName = focused ? 'list' : 'list-outline';
           } else if (route.name === 'AdminAppointments') {
             iconName = focused ? 'calendar' : 'calendar-outline';
+          } else if (route.name === 'AdminEmployees') {
+            iconName = focused ? 'person-circle' : 'person-circle-outline';
           } else if (route.name === 'AdminProfile') {
             iconName = focused ? 'settings' : 'settings-outline';
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarLabel: route.name === 'AdminDashboard' ? 'Dashboard'
-          : route.name === 'AdminLeads' ? 'Leads'
-          : route.name === 'AdminAppointments' ? 'Appointments'
-          : route.name === 'AdminEmployees' ? 'Employees'
-          : 'Settings',
+        tabBarLabel:
+          route.name === 'AdminDashboard' ? 'Dashboard'
+            : route.name === 'AdminLeads' ? 'Leads'
+              : route.name === 'AdminAppointments' ? 'Appointments'
+                : route.name === 'AdminEmployees' ? 'Employees'
+                  : 'Settings',
       })}
     >
       <Tab.Screen name="AdminDashboard" component={AdminDashboardScreen} />
@@ -84,6 +88,8 @@ export default function AdminNavigator() {
       <Stack.Screen name="EmployeeDetail" component={EmployeeDetailScreen} />
       <Stack.Screen name="AdminLeadDetail" component={AdminLeadDetailScreen} />
       <Stack.Screen name="AssignLead" component={AssignLeadScreen} />
+      <Stack.Screen name="AdminPerformance" component={PerformanceDashboardScreen} />
+      <Stack.Screen name="LeadArchive" component={LeadArchiveScreen} />
       <Stack.Screen name="Sidebar" component={SidebarScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />

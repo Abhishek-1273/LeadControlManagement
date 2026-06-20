@@ -15,4 +15,8 @@ const followUpSchema = new mongoose.Schema({
   isCompleted: { type: Boolean, default: false },
 }, { timestamps: true });
 
+// "Today's follow-ups" queries filter by employee + date + isCompleted.
+followUpSchema.index({ employee: 1, date: 1, isCompleted: 1 });
+followUpSchema.index({ lead: 1 });
+
 module.exports = mongoose.model('FollowUp', followUpSchema);

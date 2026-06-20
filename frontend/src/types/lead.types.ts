@@ -20,6 +20,7 @@ export interface Lead {
   createdAt: string;
   updatedAt: string;
   isPinned: boolean;
+  visitorDate?: string;
   notes?: Note[];
   followUps?: FollowUp[];
   timeline?: TimelineEntry[];

@@ -1,9 +1,10 @@
 const mongoose = require('mongoose');
-const Lead     = require('../models/Lead.model');
-const User     = require('../models/User.model');
+const Lead = require('../models/Lead.model');
+const User = require('../models/User.model');
 const FollowUp = require('../models/FollowUp.model');
 const asyncHandler = require('../utils/asyncHandler');
 const { normalizePhone } = require('../middleware/leadValidators');
+const { startOfDay, endOfDay, todayString } = require('../utils/dateRange');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -11,33 +12,21 @@ const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
-/**
- * Centralised duplicate-phone check (system-wide, ignores ownership).
- * Pass the lead _id to exclude if you're editing an existing lead.
- * Returns the conflicting lead or null.
- */
 async function findPhoneDuplicate(primary, secondary, excludeLeadId = null) {
   const numbersToCheck = [primary];
   if (secondary) numbersToCheck.push(secondary);
 
-  // Build the query: match any lead whose primary OR secondary phone
-  // equals any of the numbers we're checking.
   const orClauses = [
-    { phone:          { $in: numbersToCheck } },
+    { phone: { $in: numbersToCheck } },
     { secondaryPhone: { $in: numbersToCheck } },
   ];
 
   const query = { $or: orClauses };
-
-  // When editing, exclude the lead being updated from the check
-  if (excludeLeadId) {
-    query._id = { $ne: excludeLeadId };
-  }
+  if (excludeLeadId) query._id = { $ne: excludeLeadId };
 
   return Lead.findOne(query).select('_id name phone secondaryPhone assignedTo');
 }
 
-// Fetch lead by :id and enforce employee ownership (admins can always access).
 async function getOwnedLead(req, res) {
   const { id } = req.params;
 
@@ -68,25 +57,75 @@ async function getOwnedLead(req, res) {
 // GET /leads — list (employee sees only their own; admin sees all)
 exports.getMyLeads = asyncHandler(async (req, res) => {
   const { role, _id } = req.user;
-  const { search, status } = req.query;
+  const { search, status, dateFrom, dateTo, page = 1, limit = 50 } = req.query;
 
   const filter = {};
   if (role === 'employee') filter.assignedTo = _id;
-  if (status)              filter.status = status;
+  if (status) filter.status = status;
 
-  if (search) {
-    const safe = escapeRegex(search);
+  // Date range filter (used by admin for "today's leads", or any explicit
+  // range request). Explicit dateFrom/dateTo always takes precedence.
+  if (dateFrom || dateTo) {
+    filter.createdAt = {};
+    if (dateFrom) {
+      const start = new Date(dateFrom);
+      start.setHours(0, 0, 0, 0);
+      filter.createdAt.$gte = start;
+    }
+    if (dateTo) {
+      const end = new Date(dateTo);
+      end.setHours(23, 59, 59, 999);
+      filter.createdAt.$lte = end;
+    }
+  } else if (role === 'employee') {
+    // FIX: this endpoint previously had NO date scoping for employees, so
+    // "My Leads" (and every status chip — All/Hot/Warm/Cold/Follow Up,
+    // which all hit this same endpoint) returned every lead ever assigned
+    // to the employee, including old unbooked leads from previous days.
+    // Those old leads must only ever appear in Previous Pending
+    // (getEmployeePendingLeads) — never in today's workflow. Scope to
+    // today's window here, identical to getEmployeeTodayLeads, so My Leads
+    // and all its filters only ever operate on today's leads.
+    const todayStart = startOfDay();
+    const todayEnd = endOfDay();
+    filter.createdAt = { $gte: todayStart, $lte: todayEnd };
     filter.$or = [
-      { name:  { $regex: safe, $options: 'i' } },
-      { phone: { $regex: safe, $options: 'i' } },
+      { status: { $ne: 'Booked' } },
+      { status: 'Booked', updatedAt: { $gte: todayStart } },
     ];
   }
 
-  const leads = await Lead.find(filter)
-    .populate('assignedTo', 'name email')
-    .sort({ isPinned: -1, createdAt: -1 });
+  if (search) {
+    const safe = escapeRegex(search);
+    const searchOr = [
+      { name: { $regex: safe, $options: 'i' } },
+      { phone: { $regex: safe, $options: 'i' } },
+    ];
+    // filter.$or may already be set above (employee today-scope booked
+    // condition). Combine both conditions with $and instead of overwriting,
+    // so search doesn't silently undo the today/booked-window scoping.
+    if (filter.$or) {
+      filter.$and = [{ $or: filter.$or }, { $or: searchOr }];
+      delete filter.$or;
+    } else {
+      filter.$or = searchOr;
+    }
+  }
 
-  res.json({ leads, total: leads.length });
+  const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+  const limitNum = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
+  const skip = (pageNum - 1) * limitNum;
+
+  const [leads, total] = await Promise.all([
+    Lead.find(filter)
+      .populate('assignedTo', 'name email')
+      .sort({ isPinned: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum),
+    Lead.countDocuments(filter),
+  ]);
+
+  res.json({ leads, total, page: pageNum, limit: limitNum });
 });
 
 // GET /leads/:id
@@ -153,27 +192,95 @@ exports.togglePin = asyncHandler(async (req, res) => {
   res.json({ isPinned: lead.isPinned });
 });
 
-// GET /leads/dashboard
+// GET /leads/dashboard — Employee dashboard with Today's Leads + Previous Pending
 exports.getDashboardStats = asyncHandler(async (req, res) => {
   const { role, _id } = req.user;
   const filter = role === 'employee' ? { assignedTo: _id } : {};
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Today boundaries (app-timezone aware)
+  const todayStart = startOfDay();
+  const todayEnd = endOfDay();
 
-  const [total, newToday, hot, warm, cold, followUp, booked, followUps] =
-    await Promise.all([
+  if (role === 'employee') {
+    // Today's leads — assigned today, NOT booked before today
+    const todayLeadsQuery = {
+      assignedTo: _id,
+      createdAt: { $gte: todayStart, $lte: todayEnd },
+      // Exclude leads that were booked on a previous day
+      $or: [
+        { status: { $ne: 'Booked' } },
+        { status: 'Booked', updatedAt: { $gte: todayStart } },
+      ],
+    };
+
+    // Previous pending leads — assigned before today, still active (not booked).
+    // Kept identical to getEmployeePendingLeads so the dashboard count always
+    // matches the list the employee actually opens.
+    const pendingLeadsQuery = {
+      assignedTo: _id,
+      createdAt: { $lt: todayStart },
+      status: { $in: ['Hot', 'Warm', 'Cold', 'Follow Up'] },
+    };
+
+    // Booked today (same day — still visible to employee)
+    const bookedTodayQuery = {
+      assignedTo: _id,
+      status: 'Booked',
+      updatedAt: { $gte: todayStart, $lte: todayEnd },
+    };
+
+    const [
+      total, hot, warm, cold, followUp, booked,
+      todayLeadsCount, previousPendingCount, bookedToday, todayFollowUps,
+    ] = await Promise.all([
       Lead.countDocuments(filter),
-      Lead.countDocuments({ ...filter, createdAt: { $gte: today } }),
       Lead.countDocuments({ ...filter, status: 'Hot' }),
       Lead.countDocuments({ ...filter, status: 'Warm' }),
       Lead.countDocuments({ ...filter, status: 'Cold' }),
       Lead.countDocuments({ ...filter, status: 'Follow Up' }),
       Lead.countDocuments({ ...filter, status: 'Booked' }),
+      Lead.countDocuments(todayLeadsQuery),
+      Lead.countDocuments(pendingLeadsQuery),
+      Lead.countDocuments(bookedTodayQuery),
       FollowUp.countDocuments({
         employee: _id,
-        date: today.toISOString().split('T')[0],
+        date: todayString(),
         isCompleted: false,
+      }),
+    ]);
+
+    return res.json({
+      totalLeads: total,
+      newToday: todayLeadsCount,
+      hot, warm, cold, followUp, booked,
+      todayFollowUps,
+      pending: previousPendingCount,
+      // New fields for employee dashboard
+      todayLeadsCount,
+      previousPendingCount,
+      bookedToday,
+    });
+  }
+
+  // Admin path
+  const [total, newToday, hot, warm, cold, followUp, booked, followUps, pendingActive] =
+    await Promise.all([
+      Lead.countDocuments(filter),
+      Lead.countDocuments({ ...filter, createdAt: { $gte: todayStart } }),
+      Lead.countDocuments({ ...filter, status: 'Hot' }),
+      Lead.countDocuments({ ...filter, status: 'Warm' }),
+      Lead.countDocuments({ ...filter, status: 'Cold' }),
+      Lead.countDocuments({ ...filter, status: 'Follow Up' }),
+      Lead.countDocuments({ ...filter, status: 'Booked' }),
+      // Org-wide follow-ups due today (admin has no follow-ups of their own).
+      FollowUp.countDocuments({
+        date: todayString(),
+        isCompleted: false,
+      }),
+      // Real pending = active, non-booked leads (not just the "Follow Up" status).
+      Lead.countDocuments({
+        ...filter,
+        status: { $in: ['Hot', 'Warm', 'Cold', 'Follow Up'] },
       }),
     ]);
 
@@ -181,8 +288,44 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     totalLeads: total, newToday,
     hot, warm, cold, followUp, booked,
     todayFollowUps: followUps,
-    pending: followUp,
+    pending: pendingActive,
   });
+});
+
+// GET /leads/employee-today — Employee: today's active leads list
+exports.getEmployeeTodayLeads = asyncHandler(async (req, res) => {
+  const { _id } = req.user;
+  const todayStart = startOfDay();
+  const todayEnd = endOfDay();
+
+  const leads = await Lead.find({
+    assignedTo: _id,
+    createdAt: { $gte: todayStart, $lte: todayEnd },
+    $or: [
+      { status: { $ne: 'Booked' } },
+      { status: 'Booked', updatedAt: { $gte: todayStart } },
+    ],
+  })
+    .populate('assignedTo', 'name email')
+    .sort({ isPinned: -1, createdAt: -1 });
+
+  res.json({ leads, total: leads.length });
+});
+
+// GET /leads/employee-pending — Previous days' pending leads
+exports.getEmployeePendingLeads = asyncHandler(async (req, res) => {
+  const { _id } = req.user;
+  const todayStart = startOfDay();
+
+  const leads = await Lead.find({
+    assignedTo: _id,
+    createdAt: { $lt: todayStart },
+    status: { $in: ['Hot', 'Warm', 'Cold', 'Follow Up'] },
+  })
+    .populate('assignedTo', 'name email')
+    .sort({ isPinned: -1, createdAt: -1 });
+
+  res.json({ leads, total: leads.length });
 });
 
 // POST /leads — create lead (both admin and employee)
@@ -190,35 +333,29 @@ exports.createLead = asyncHandler(async (req, res) => {
   const {
     name, primaryPhone, secondaryPhone,
     email, city, source, campaign, car,
-    assignedTo,           // only meaningful when called by admin
+    assignedTo,
   } = req.body;
 
   const clip = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
 
-  // Normalise phones (validator already sanitises, but be defensive)
-  const primary   = normalizePhone(primaryPhone);
+  const primary = normalizePhone(primaryPhone);
   const secondary = secondaryPhone ? normalizePhone(secondaryPhone) : '';
 
-  // ── SYSTEM-WIDE duplicate check ──────────────────────────────────────────
   const duplicate = await findPhoneDuplicate(primary, secondary);
   if (duplicate) {
     return res.status(409).json({
       message: 'Lead already exists with this phone number.',
       conflictLead: {
-        id:   duplicate._id,
+        id: duplicate._id,
         name: duplicate.name,
         phone: duplicate.phone,
       },
     });
   }
 
-  // ── Determine assignee ───────────────────────────────────────────────────
-  // Admin → use the assignedTo value from the request body (can be null/undefined)
-  // Employee → always assign to themselves
   let assignee = null;
   if (req.user.role === 'admin') {
     if (assignedTo) {
-      // Validate the provided employee ID exists
       if (!isValidId(assignedTo)) {
         return res.status(400).json({ message: 'Invalid assignedTo employee ID' });
       }
@@ -231,24 +368,21 @@ exports.createLead = asyncHandler(async (req, res) => {
       }
       assignee = emp._id;
     }
-    // if assignedTo is empty/null, assignee stays null (unassigned)
   } else {
-    // Employee creating a lead → always assigned to themselves
     assignee = req.user._id;
   }
 
-  // ── Create ───────────────────────────────────────────────────────────────
   const lead = await Lead.create({
-    name:          clip(name, 120),
-    phone:         primary,
+    name: clip(name, 120),
+    phone: primary,
     secondaryPhone: secondary,
-    email:         clip(email, 120),
-    city:          clip(city, 80),
-    source:        clip(source, 40) || 'Manual',
-    campaign:      clip(campaign, 120),
-    car:           clip(car, 80),
-    status:        'Cold',
-    assignedTo:    assignee,
+    email: clip(email, 120),
+    city: clip(city, 80),
+    source: clip(source, 40) || 'Manual',
+    campaign: clip(campaign, 120),
+    car: clip(car, 80),
+    status: 'Cold',
+    assignedTo: assignee,
     timeline: [{
       type: 'created',
       description: `Lead created manually by ${req.user.name}` +
@@ -256,7 +390,6 @@ exports.createLead = asyncHandler(async (req, res) => {
     }],
   });
 
-  // Populate assignedTo so the frontend gets the full object back immediately
   await lead.populate('assignedTo', 'name email');
 
   res.status(201).json({ message: 'Lead created successfully', lead });
@@ -282,28 +415,25 @@ exports.webhookLead = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Invalid email' });
   }
 
-  // ── System-wide duplicate check ──────────────────────────────────────────
   const duplicate = await findPhoneDuplicate(normalizedPhone, '');
   if (duplicate) {
-    // Return 200 so the webhook caller doesn't retry; just skip silently
     return res.json({ success: true, skipped: true, reason: 'duplicate_phone', leadId: duplicate._id });
   }
 
   const clip = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
 
-  // Round-robin: pick the least-loaded active employee
   const employee = await User.findOne({ role: 'employee', isActive: true });
 
   const lead = await Lead.create({
-    name:     clip(name, 120),
-    phone:    normalizedPhone,
-    email:    clip(email, 120),
-    city:     clip(city, 80),
-    source:   clip(source, 40) || 'n8n',
+    name: clip(name, 120),
+    phone: normalizedPhone,
+    email: clip(email, 120),
+    city: clip(city, 80),
+    source: clip(source, 40) || 'n8n',
     campaign: clip(campaign, 120),
-    message:  clip(message, 1000),
-    car:      clip(car, 80),
-    status:   'Cold',
+    message: clip(message, 1000),
+    car: clip(car, 80),
+    status: 'Cold',
     assignedTo: employee?._id || null,
     timeline: [{
       type: 'created',
@@ -337,10 +467,10 @@ exports.addFollowUp = asyncHandler(async (req, res) => {
 
 // GET /leads/followups/today
 exports.getTodayFollowUps = asyncHandler(async (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayString();
   const followUps = await FollowUp.find({
-    employee:    req.user._id,
-    date:        today,
+    employee: req.user._id,
+    date: today,
     isCompleted: false,
   }).populate('lead', 'name phone status');
 
@@ -366,7 +496,6 @@ exports.updateLeadInfo = asyncHandler(async (req, res) => {
   const lead = await getOwnedLead(req, res);
   if (!lead) return;
 
-  // If phone is being updated, run a duplicate check excluding this lead
   if (phone) {
     const normalised = normalizePhone(phone);
     if (!/^\d{10}$/.test(normalised)) {
@@ -379,10 +508,10 @@ exports.updateLeadInfo = asyncHandler(async (req, res) => {
     lead.phone = normalised;
   }
 
-  if (name     !== undefined) lead.name     = name;
-  if (email    !== undefined) lead.email    = email;
-  if (city     !== undefined) lead.city     = city;
-  if (car      !== undefined) lead.car      = car;
+  if (name !== undefined) lead.name = name;
+  if (email !== undefined) lead.email = email;
+  if (city !== undefined) lead.city = city;
+  if (car !== undefined) lead.car = car;
   if (campaign !== undefined) lead.campaign = campaign;
 
   lead.timeline.push({
@@ -392,21 +521,4 @@ exports.updateLeadInfo = asyncHandler(async (req, res) => {
 
   await lead.save();
   res.json({ message: 'Lead updated successfully', lead });
-});
-
-// DELETE /leads/:id
-exports.deleteLead = asyncHandler(async (req, res) => {
-  if (!isValidId(req.params.id)) return res.status(404).json({ message: 'Lead not found' });
-  await Lead.findByIdAndDelete(req.params.id);
-  res.json({ message: 'Lead deleted' });
-});
-
-// DELETE /leads/bulk?days=N
-exports.bulkDeleteLeads = asyncHandler(async (req, res) => {
-  const days   = parseInt(req.query.days) || 30;
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-
-  const result = await Lead.deleteMany({ createdAt: { $lt: cutoff } });
-  res.json({ message: `${result.deletedCount} leads deleted`, deletedCount: result.deletedCount });
 });

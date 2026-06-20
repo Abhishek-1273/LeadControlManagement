@@ -1,9 +1,8 @@
+// Centralised API paths. Only endpoints that exist on the backend and are
+// actually consumed live here — stale/aspirational routes were removed to
+// avoid 404s and confusion. Most stores call axios with literal paths.
 export const endpoints = {
   // Auth
-  login: '/auth/login',
-  logout: '/auth/logout',
-  refreshToken: '/auth/refresh',
-  forgotPassword: '/auth/forgot-password',
   changePassword: '/auth/change-password',
 
   // Notifications
@@ -13,18 +12,4 @@ export const endpoints = {
   notificationRead: (id: string) => `/notifications/${id}/read`,
   notificationDelete: (id: string) => `/notifications/${id}`,
   sendNotification: '/notifications/send',
-
-  // Leads
-  leads: '/leads',
-  createLead: '/leads',
-  leadDetail: (id: string) => `/leads/${id}`,
-  leadStatus: (id: string) => `/leads/${id}/status`,
-  leadNotes: (id: string) => `/leads/${id}/notes`,
-  leadFollowUps: (id: string) => `/leads/${id}/followups`,
-  leadTimeline: (id: string) => `/leads/${id}/timeline`,
-  pinLead: (id: string) => `/leads/${id}/pin`,
-
-  // Employee
-  profile: '/employee/profile',
-  dashboard: '/employee/dashboard',
 };

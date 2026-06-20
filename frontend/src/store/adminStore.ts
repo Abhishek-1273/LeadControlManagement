@@ -13,6 +13,23 @@ interface Employee {
   totalLeads?: number;
 }
 
+export interface EmployeePerformance {
+  employee: {
+    _id: string;
+    name: string;
+    email: string;
+    isActive: boolean;
+  };
+  assignedToday: number;
+  bookedToday: number;
+  previousPending: number;
+  totalAssigned: number;
+  totalBooked: number;
+  weeklyBooked: number;
+  monthlyBooked: number;
+  conversionRate: number;
+}
+
 interface AdminStats {
   totalLeads: number;
   todayLeads: number;
@@ -24,10 +41,18 @@ interface AdminStats {
   totalEmployees: number;
 }
 
+export interface MonthlyTrendPoint {
+  label: string; // e.g. 'Jul'
+  year: number;
+  count: number;
+}
+
 interface AdminStore {
   employees: Employee[];
   selectedEmployee: Employee | null;
   stats: AdminStats;
+  performanceData: EmployeePerformance[];
+  monthlyTrend: MonthlyTrendPoint[];
   appointments: Appointment[];
   selectedAppointment: Appointment | null;
   isLoading: boolean;
@@ -39,14 +64,15 @@ interface AdminStore {
   updateEmployee: (id: string, data: any) => Promise<void>;
   toggleEmployeeStatus: (id: string) => Promise<void>;
   fetchAdminStats: () => Promise<void>;
+  fetchPerformanceDashboard: () => Promise<void>;
+  fetchMonthlyTrend: () => Promise<void>;
   assignLead: (leadId: string, employeeId: string) => Promise<void>;
+  fetchAllLeads: (filters?: Record<string, string>) => Promise<{ leads: any[]; total: number }>;
 
   // Appointments
   fetchAppointments: () => Promise<void>;
   fetchAppointmentById: (id: string) => Promise<void>;
-  createAppointment: (data: { leadId: string; appointmentDate: string; appointmentTime: string; description?: string }) => Promise<void>;
   updateAppointment: (id: string, data: any) => Promise<void>;
-  deleteAppointment: (id: string) => Promise<void>;
 }
 
 export const useAdminStore = create<AdminStore>((set, get) => ({
@@ -56,6 +82,8 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     totalLeads: 0, todayLeads: 0, hot: 0,
     warm: 0, cold: 0, followUp: 0, booked: 0, totalEmployees: 0,
   },
+  performanceData: [],
+  monthlyTrend: [],
   appointments: [],
   selectedAppointment: null,
   isLoading: false,
@@ -117,9 +145,38 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     }
   },
 
+  fetchPerformanceDashboard: async () => {
+    set({ isLoading: true });
+    try {
+      const res = await axiosInstance.get('/admin/performance');
+      set({ performanceData: res.data.performance || [], isLoading: false });
+    } catch (err: any) {
+      set({ error: err.message, isLoading: false });
+    }
+  },
+
+  fetchMonthlyTrend: async () => {
+    try {
+      const res = await axiosInstance.get('/admin/monthly-trend');
+      set({ monthlyTrend: res.data.trend || [] });
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
   assignLead: async (leadId, employeeId) => {
     try {
       await axiosInstance.patch(`/admin/leads/${leadId}/assign`, { employeeId });
+    } catch (err: any) {
+      throw err;
+    }
+  },
+
+  fetchAllLeads: async (filters = {}) => {
+    try {
+      const params = new URLSearchParams(filters as any);
+      const res = await axiosInstance.get(`/admin/leads?${params.toString()}`);
+      return { leads: res.data.leads || [], total: res.data.total || 0 };
     } catch (err: any) {
       throw err;
     }
@@ -146,16 +203,6 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     }
   },
 
-  createAppointment: async (data) => {
-    try {
-      const res = await axiosInstance.post('/admin/appointments', data);
-      await get().fetchAppointments();
-      return res.data;
-    } catch (err: any) {
-      throw err;
-    }
-  },
-
   updateAppointment: async (id, data) => {
     try {
       await axiosInstance.patch(`/admin/appointments/${id}`, data);
@@ -165,12 +212,4 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     }
   },
 
-  deleteAppointment: async (id) => {
-    try {
-      await axiosInstance.delete(`/admin/appointments/${id}`);
-      set(state => ({ appointments: state.appointments.filter(a => a._id !== id) }));
-    } catch (err: any) {
-      throw err;
-    }
-  },
 }));

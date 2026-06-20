@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "138927596072",
+    "project_id": "whatsflow-d0015",
+    "storage_bucket": "whatsflow-d0015.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:138927596072:android:097cf666a373c1e5c14b1d",
+        "android_client_info": {
+          "package_name": "whatsflow.velta"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPmHmiOhbwbDfieab5esGmyGAR3GyXDpc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
