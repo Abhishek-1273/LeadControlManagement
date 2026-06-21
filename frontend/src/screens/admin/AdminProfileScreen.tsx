@@ -84,6 +84,7 @@ export default function AdminProfileScreen() {
                         label="Send Notification"
                         onPress={() => navigation.navigate('SendNotification')}
                     />
+                    <View style={styles.divider} />
                     <TouchableOpacity
                         style={styles.menuItem}
                         onPress={() => navigation.navigate('Sidebar')}

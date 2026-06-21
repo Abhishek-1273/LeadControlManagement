@@ -14,6 +14,28 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
+// Builds a Date from the appointment's date/time strings using LOCAL
+// calendar-field construction (new Date(y, m, d, h, min)) — this is the
+// timezone-safe pattern already established elsewhere in this codebase
+// (see dateRange.js). It deliberately avoids `new Date(isoString)` /
+// `toISOString().split('T')[0]`-style parsing, which interprets the
+// string as UTC and can shift the date across a day boundary depending
+// on the device's offset from UTC.
+function appointmentDateTime(appt: Appointment): Date {
+  const [y, m, d] = appt.appointmentDate.split('-').map(Number);
+  const [h, min] = appt.appointmentTime.split(':').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1, h || 0, min || 0, 0, 0);
+}
+
+// "Overdue" is a derived UI state, not a DB field: a scheduled appointment
+// whose date/time has passed shows as overdue/missed in the list without
+// requiring the admin to do anything, but nothing is auto-written to the
+// server. Completed/missed appointments (admin-set) are never "overdue".
+function isOverdue(appt: Appointment): boolean {
+  if (appt.status !== 'scheduled') return false;
+  return appointmentDateTime(appt).getTime() < Date.now();
+}
+
 // ─── WhatsApp Message Modal ───────────────────────────────────────────────────
 function WhatsAppModal({
   visible,
@@ -100,42 +122,73 @@ function WhatsAppModal({
   );
 }
 
+// ─── Status badge ──────────────────────────────────────────────────────────
+function StatusBadge({ appt }: { appt: Appointment }) {
+  if (appt.status === 'completed') {
+    return (
+      <View style={[styles.miniBadge, { backgroundColor: '#059669' + '18' }]}>
+        <Ionicons name="checkmark-circle" size={13} color="#059669" />
+        <Text style={[styles.miniBadgeText, { color: '#059669' }]}>Done</Text>
+      </View>
+    );
+  }
+  if (appt.status === 'missed' || isOverdue(appt)) {
+    return (
+      <View style={[styles.miniBadge, { backgroundColor: '#DC2626' + '18' }]}>
+        <Ionicons name="alert-circle" size={13} color="#DC2626" />
+        <Text style={[styles.miniBadgeText, { color: '#DC2626' }]}>Missed</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={[styles.miniBadge, { backgroundColor: colors.primary + '18' }]}>
+      <Ionicons name="time" size={13} color={colors.primary} />
+      <Text style={[styles.miniBadgeText, { color: colors.primary }]}>Upcoming</Text>
+    </View>
+  );
+}
+
 // ─── Appointment Card ─────────────────────────────────────────────────────────
 function AppointmentCard({
   item,
   onWhatsApp,
+  onToggleComplete,
 }: {
   item: Appointment;
   onWhatsApp: (a: Appointment) => void;
+  onToggleComplete: (a: Appointment) => void;
 }) {
+  const overdue = isOverdue(item);
+  const completed = item.status === 'completed';
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, completed && styles.cardCompleted]}>
       {/* Header */}
       <View style={styles.cardHeader}>
-        <View style={styles.avatarCircle}>
+        <View style={[styles.avatarCircle, completed && { opacity: 0.5 }]}>
           <Text style={styles.avatarText}>{item.lead.name[0].toUpperCase()}</Text>
         </View>
         <View style={styles.cardHeaderInfo}>
-          <Text style={styles.leadName}>{item.lead.name}</Text>
-          <Text style={styles.leadPhone}>{item.lead.phone}</Text>
+          <Text style={[styles.leadName, completed && styles.textMuted]}>{item.lead.name}</Text>
+          <Text style={[styles.leadPhone, completed && styles.textMuted]}>{item.lead.phone}</Text>
         </View>
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>{item.lead.status}</Text>
-        </View>
+        <StatusBadge appt={item} />
       </View>
 
       {/* Details */}
       <View style={styles.detailRow}>
         <Ionicons name="calendar-outline" size={15} color={colors.textSecondary} />
-        <Text style={styles.detailText}>{item.appointmentDate}</Text>
+        <Text style={[styles.detailText, completed && styles.textMuted]}>{item.appointmentDate}</Text>
         <Ionicons name="time-outline" size={15} color={colors.textSecondary} style={{ marginLeft: spacing.md }} />
-        <Text style={styles.detailText}>{item.appointmentTime}</Text>
+        <Text style={[styles.detailText, completed && styles.textMuted, overdue && !completed && styles.overdueText]}>
+          {item.appointmentTime}
+        </Text>
       </View>
 
       {item.lead.assignedTo && (
         <View style={styles.detailRow}>
           <Ionicons name="person-outline" size={15} color={colors.textSecondary} />
-          <Text style={styles.detailText}>Employee: {item.lead.assignedTo.name}</Text>
+          <Text style={[styles.detailText, completed && styles.textMuted]}>Employee: {item.lead.assignedTo.name}</Text>
         </View>
       )}
 
@@ -152,6 +205,16 @@ function AppointmentCard({
           <Text style={styles.waBtnText}>Send on WhatsApp</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={[styles.checkBtn, completed && styles.checkBtnDone]}
+          onPress={() => onToggleComplete(item)}
+        >
+          <Ionicons
+            name={completed ? 'checkmark-circle' : 'checkmark-circle-outline'}
+            size={22}
+            color={completed ? '#059669' : colors.textSecondary}
+          />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -160,11 +223,13 @@ function AppointmentCard({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function AppointmentsScreen() {
   const insets = useSafeAreaInsets();
-  const { appointments, fetchAppointments, isLoading } = useAdminStore();
+  const navigation = useNavigation<any>();
+  const { appointments, fetchAppointments, setAppointmentStatus, isLoading } = useAdminStore();
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [waModalVisible, setWaModalVisible] = useState(false);
   const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
+  const [tab, setTab] = useState<'upcoming' | 'completed'>('upcoming');
 
   useFocusEffect(
     useCallback(() => {
@@ -184,7 +249,23 @@ export default function AppointmentsScreen() {
     setWaModalVisible(true);
   };
 
-  const filtered = appointments.filter((a) => {
+  const handleToggleComplete = (appt: Appointment) => {
+    const nextStatus = appt.status === 'completed' ? 'scheduled' : 'completed';
+    setAppointmentStatus(appt._id, nextStatus).catch(() => {
+      Toast.show({ type: 'error', text1: 'Could not update appointment' });
+    });
+  };
+
+  const byTab = appointments.filter((a) =>
+    tab === 'completed' ? a.status === 'completed' : a.status !== 'completed'
+  );
+
+  const filtered = byTab.filter((a) => {
+    // Defensive guard: an appointment whose lead was deleted would have
+    // a.lead === null, which crashes every .lead.* access below (and in
+    // AppointmentCard). The backend now filters these out, but this stays
+    // as a safety net for any appointment fetched before that fix deploys.
+    if (!a.lead) return false;
     const q = search.toLowerCase();
     return (
       a.lead.name.toLowerCase().includes(q) ||
@@ -193,12 +274,50 @@ export default function AppointmentsScreen() {
     );
   });
 
+  // Upcoming tab: overdue-but-unmarked first, then chronological (list is
+  // already sorted by date/time from the API for the rest).
+  const sorted = tab === 'upcoming'
+    ? [...filtered].sort((a, b) => (isOverdue(b) ? 1 : 0) - (isOverdue(a) ? 1 : 0))
+    : filtered;
+
+  const completedCount = appointments.filter((a) => a.status === 'completed').length;
+  const upcomingCount = appointments.length - completedCount;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>📅 Appointments</Text>
-        <Text style={styles.headerSub}>{appointments.length} total</Text>
+        <View>
+          <Text style={styles.headerTitle}>📅 Appointments</Text>
+          <Text style={styles.headerSub}>{appointments.length} total</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.scheduleBtn}
+          onPress={() => navigation.navigate('AdminSchedule')}
+        >
+          <Ionicons name="time-outline" size={16} color={colors.primary} />
+          <Text style={styles.scheduleBtnText}>My Schedule</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Tabs */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tabBtn, tab === 'upcoming' && styles.tabBtnActive]}
+          onPress={() => setTab('upcoming')}
+        >
+          <Text style={[styles.tabBtnText, tab === 'upcoming' && styles.tabBtnTextActive]}>
+            Upcoming ({upcomingCount})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabBtn, tab === 'completed' && styles.tabBtnActive]}
+          onPress={() => setTab('completed')}
+        >
+          <Text style={[styles.tabBtnText, tab === 'completed' && styles.tabBtnTextActive]}>
+            Completed ({completedCount})
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Search */}
@@ -219,12 +338,13 @@ export default function AppointmentsScreen() {
       </View>
 
       <FlatList
-        data={filtered}
+        data={sorted}
         keyExtractor={(item) => item._id}
         renderItem={({ item }) => (
           <AppointmentCard
             item={item}
             onWhatsApp={handleWhatsApp}
+            onToggleComplete={handleToggleComplete}
           />
         )}
         contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 80 }}
@@ -232,9 +352,13 @@ export default function AppointmentsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="calendar-outline" size={56} color={colors.textLight} />
-            <Text style={styles.emptyTitle}>No Appointments</Text>
+            <Text style={styles.emptyTitle}>
+              {tab === 'completed' ? 'No Completed Appointments' : 'No Appointments'}
+            </Text>
             <Text style={styles.emptySubtitle}>
-              Appointments appear here when employees mark leads as Booked.
+              {tab === 'completed'
+                ? 'Appointments you mark as done will show up here.'
+                : 'Appointments appear here when employees mark leads as Booked.'}
             </Text>
           </View>
         }
@@ -258,6 +382,25 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: typography.lg, fontWeight: typography.bold as any, color: colors.textPrimary },
   headerSub: { fontSize: typography.sm, color: colors.textSecondary },
+  scheduleBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.primary + '15', paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 10,
+  },
+  scheduleBtnText: { fontSize: typography.xs, fontWeight: typography.semiBold as any, color: colors.primary },
+
+  tabRow: {
+    flexDirection: 'row', gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingTop: spacing.sm,
+    backgroundColor: colors.white,
+  },
+  tabBtn: {
+    flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  tabBtnActive: { backgroundColor: colors.primary },
+  tabBtnText: { fontSize: typography.sm, fontWeight: typography.semiBold as any, color: colors.textSecondary },
+  tabBtnTextActive: { color: '#fff' },
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -272,6 +415,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm, elevation: 2,
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
   },
+  cardCompleted: { opacity: 0.7, backgroundColor: '#FAFAFA' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
   avatarCircle: {
     width: 40, height: 40, borderRadius: 20,
@@ -282,11 +426,16 @@ const styles = StyleSheet.create({
   cardHeaderInfo: { flex: 1 },
   leadName: { fontSize: typography.md, fontWeight: typography.semiBold as any, color: colors.textPrimary },
   leadPhone: { fontSize: typography.xs, color: colors.textSecondary, marginTop: 2 },
-  statusBadge: { backgroundColor: '#059669' + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  statusText: { fontSize: typography.xs, color: '#059669', fontWeight: typography.semiBold as any },
+  textMuted: { color: colors.textLight },
+  miniBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
+  },
+  miniBadgeText: { fontSize: typography.xs, fontWeight: typography.semiBold as any },
 
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   detailText: { fontSize: typography.sm, color: colors.textSecondary },
+  overdueText: { color: '#DC2626', fontWeight: typography.semiBold as any },
 
   descBox: {
     backgroundColor: '#F3F4F6', borderRadius: 8, padding: 10, marginTop: spacing.xs,
@@ -299,10 +448,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#25D366', borderRadius: 10, paddingVertical: 10,
   },
   waBtnText: { color: '#fff', fontSize: typography.sm, fontWeight: typography.semiBold as any },
-  deleteBtn: {
+  checkBtn: {
     width: 42, height: 42, borderRadius: 10, borderWidth: 1,
-    borderColor: '#EF4444' + '40', justifyContent: 'center', alignItems: 'center',
+    borderColor: colors.border, justifyContent: 'center', alignItems: 'center',
   },
+  checkBtnDone: { borderColor: '#059669' + '60', backgroundColor: '#059669' + '10' },
 
   emptyState: { alignItems: 'center', paddingTop: 80, gap: spacing.sm },
   emptyTitle: { fontSize: typography.lg, fontWeight: typography.bold as any, color: colors.textPrimary },

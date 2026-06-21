@@ -8,7 +8,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
@@ -75,16 +75,23 @@ type ListItem = HeaderItem | DividerItem | LeadItem;
 // ─────────────────────────────────────────────
 // LeadCard Component
 // ─────────────────────────────────────────────
+const formatLeadDate = (dateStr: string) => {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const LeadCard = React.memo(({
   lead,
   onPress,
   onUninterested,
   onTogglePin,
+  showDate = false,
 }: {
   lead: Lead;
   onPress: () => void;
   onUninterested: () => void;
   onTogglePin: () => void;
+  showDate?: boolean;
 }) => {
   const statusColor = STATUS_COLORS[lead.status] || colors.primary;
 
@@ -133,6 +140,13 @@ const LeadCard = React.memo(({
           <View style={styles.sourceChip}>
             <Ionicons name="globe-outline" size={12} color={colors.textSecondary} />
             <Text style={styles.sourceText}>{lead.source}</Text>
+            {showDate && (
+              <>
+                <Text style={styles.sourceText}>·</Text>
+                <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
+                <Text style={styles.sourceText}>{formatLeadDate(lead.createdAt)}</Text>
+              </>
+            )}
           </View>
           <View style={styles.actionButtons}>
             <TouchableOpacity
@@ -449,33 +463,37 @@ const AddLeadModal = ({
 export default function LeadListScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const route = useRoute<any>();
 
   const {
-    leads, todayLeads, pendingLeads,
-    fetchLeads, fetchEmployeeTodayLeads, fetchEmployeePendingLeads,
+    leads,
+    fetchLeads,
     isLoading, updateStatus, togglePin,
   } = useLeadStore();
-
-  // Detect special filter mode from dashboard navigation
-  const routeFilter: string | undefined = route.params?.filter;
 
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<LeadStatus | 'All'>('All');
 
-  // Tracks whether the user has explicitly interacted with search or a
-  // filter chip (including tapping "All" itself) at least once. The Leads
-  // tab's landing state shows today's leads by default, but the moment the
-  // user touches search or ANY chip — including re-selecting "All" — the
-  // screen must switch to showing the full `leads` dataset, the same
-  // dataset the "{leads.length} leads" header count is computed from.
-  // Without this flag, "All" was indistinguishable from "untouched", so
-  // tapping "All" kept rendering todayLeads while the header kept showing
-  // leads.length, producing a header/list mismatch ("28 leads" + empty list).
-  const [hasInteractedWithFilters, setHasInteractedWithFilters] = useState(false);
+  // Determine which lead list to show. `leads` is already scoped to
+  // today's window for employees by the backend (getMyLeads), so this is
+  // simply "My Leads" — Today's Leads from the dashboard now points here
+  // too (same screen, no special param needed). Previous Pending and
+  // Booked have their own dedicated screens (PreviousPendingScreen /
+  // BookedLeadsScreen) and never render through this component.
+  const displayLeads = React.useMemo(() => {
+    if (activeFilter !== 'All') {
+      return leads.filter((l) => l.status === activeFilter);
+    }
+    return leads;
+  }, [leads, activeFilter]);
+
+  const screenTitle = 'My Leads';
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<any>({});
 
   // Keep a ref mirror of the current filter/search so the focus effect
-  // (which only runs on mount + routeFilter changes, not on every render)
   // always reads the *latest* selection instead of a stale closure value.
   const activeFilterRef = React.useRef(activeFilter);
   const searchRef = React.useRef(search);
@@ -486,73 +504,25 @@ export default function LeadListScreen() {
     searchRef.current = search;
   }, [search]);
 
-
-  const displayLeads = React.useMemo(() => {
-    if (routeFilter === 'today') return todayLeads;
-    if (routeFilter === 'pending') return pendingLeads;
-    if (routeFilter === 'booked_today') {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      return leads.filter(
-        (l) => l.status === 'Booked' && new Date(l.updatedAt) >= todayStart
-      );
-    }
-
-    if (activeFilter !== 'All') {
-      return leads.filter((l) => l.status === activeFilter);
-    }
-    return leads;
-  }, [routeFilter, leads, todayLeads, pendingLeads, search, activeFilter]);
-
-  const screenTitle = React.useMemo(() => {
-    if (routeFilter === 'today') return "Today's Leads";
-    if (routeFilter === 'pending') return 'Previous Pending';
-    if (routeFilter === 'booked_today') return 'Booked Today';
-    return 'My Leads';
-  }, [routeFilter]);
-
-  const [refreshing, setRefreshing] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [advancedFilters, setAdvancedFilters] = useState<any>({});
-
   // Re-fetch on focus (e.g. when returning from Lead Details) WITHOUT
   // resetting the currently selected filter/search. Previously this called
   // fetchLeads() with no arguments, which replaced the store's `leads` with
   // the full unfiltered list every time the screen regained focus — wiping
   // out whatever status filter (Hot/Warm/Cold/Follow Up/etc.) was active,
   // even though the chip itself stayed visually selected. We now read the
-  // latest filter/search from refs (avoids re-subscribing the focus effect
-  // on every keystroke) and pass them through to fetchLeads so the result
-  // set always matches the active filter.
+  // latest filter/search from refs and pass them through to fetchLeads so
+  // the result set always matches the active filter.
   useFocusEffect(
     useCallback(() => {
-      if (routeFilter === 'today') {
-        fetchEmployeeTodayLeads();
-      } else if (routeFilter === 'pending') {
-        fetchEmployeePendingLeads();
-      } else {
-        fetchLeads({
-          search: searchRef.current || undefined,
-          status: activeFilterRef.current !== 'All' ? activeFilterRef.current : undefined,
-        });
-        fetchEmployeeTodayLeads();
-        fetchEmployeePendingLeads();
-      }
-      // routeFilter is the only thing that should cause this callback to be
-      // recreated (and therefore re-run on focus). activeFilter/search are
-      // read via refs above so that selecting a filter doesn't itself
-      // trigger an extra focus-driven fetch on top of the debounced one below.
-    }, [routeFilter])
+      fetchLeads({
+        search: searchRef.current || undefined,
+        status: activeFilterRef.current !== 'All' ? activeFilterRef.current : undefined,
+      });
+    }, [])
   );
 
   // Debounced fetch whenever the user explicitly changes search or filter.
-  // This is the ONLY place that should react to activeFilter/search changes
-  // for fetching purposes — the focus effect above intentionally does not
-  // depend on them, so opening/closing Lead Details never re-triggers this
-  // and never resets the selection.
   React.useEffect(() => {
-    if (routeFilter) return;
     const timer = setTimeout(() => {
       fetchLeads({
         search: search || undefined,
@@ -560,17 +530,14 @@ export default function LeadListScreen() {
       });
     }, 400);
     return () => clearTimeout(timer);
-  }, [search, activeFilter, routeFilter]);
+  }, [search, activeFilter]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    if (routeFilter === 'today') {
-      await fetchEmployeeTodayLeads();
-    } else if (routeFilter === 'pending') {
-      await fetchEmployeePendingLeads();
-    } else {
-      await fetchLeads();
-    }
+    await fetchLeads({
+      search: search || undefined,
+      status: activeFilter !== 'All' ? activeFilter : undefined,
+    });
     setRefreshing(false);
   };
 
@@ -696,7 +663,7 @@ export default function LeadListScreen() {
         onTogglePin={() => handleTogglePin(lead)}
       />
     );
-  }, [leads]);
+  }, []);
 
   const hasActiveFilters = Object.values(advancedFilters).some((v) => v !== '');
 
@@ -738,10 +705,7 @@ export default function LeadListScreen() {
             placeholder="Search by name, phone..."
             placeholderTextColor={colors.textLight}
             value={search}
-            onChangeText={(text) => {
-              setSearch(text);
-              setHasInteractedWithFilters(true);
-            }}
+            onChangeText={setSearch}
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')}>
@@ -750,8 +714,7 @@ export default function LeadListScreen() {
           )}
         </View>
 
-        {/* Status Filter Chips — fixed: taller scroll track so icon+label
-            chips don't get clipped, gap added between icon and text */}
+        {/* Status Filter Chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -771,10 +734,7 @@ export default function LeadListScreen() {
                     borderColor: f.color,
                   },
                 ]}
-                onPress={() => {
-                  setActiveFilter(f.value);
-                  setHasInteractedWithFilters(true);
-                }}
+                onPress={() => setActiveFilter(f.value)}
               >
                 <Icon size={15} color={f.color} />
                 <Text
@@ -845,12 +805,26 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', paddingHorizontal: spacing.base,
-    paddingTop: spacing.sm, paddingBottom: spacing.xs,
+    paddingTop: spacing.sm, paddingBottom: spacing.xs, gap: spacing.sm,
+  },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  routeBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    marginHorizontal: spacing.base, marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    borderRadius: 10, borderWidth: 1,
+  },
+  routeBannerText: {
+    fontSize: typography.xs, fontWeight: typography.medium, flex: 1,
   },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   title: {
     fontSize: typography.xxl, fontWeight: typography.bold,
-    color: colors.textPrimary,
+    color: colors.textPrimary, flex: 1,
   },
 
   addBtn: {

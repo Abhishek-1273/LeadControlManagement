@@ -333,10 +333,16 @@ export default function AdminLeadsScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Today's date range for filtering
+  // FIX: toISOString() converts to UTC before extracting the date, so near
+  // midnight in IST (e.g. 12:30 AM) this could return YESTERDAY's date —
+  // the admin "Leads" tab would then silently show yesterday's leads
+  // instead of today's. Build the date string from local calendar fields.
   const getTodayFilter = () => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today.toISOString().split('T')[0];
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   useFocusEffect(
@@ -370,10 +376,21 @@ export default function AdminLeadsScreen() {
       text2: `${leadName} has been added successfully`,
       visibilityTime: 2500,
     });
-    // Re-fetch with the same Today filter used everywhere else on this screen —
-    // without it, this was silently pulling in every lead ever created (old
-    // leads included) right after adding a new one.
-    await fetchLeads({ dateFrom: getTodayFilter(), dateTo: getTodayFilter() });
+    // FIX: this previously called fetchLeads() with no arguments. For an
+    // admin, getMyLeads has no date scoping unless dateFrom/dateTo are
+    // passed — so a bare call returned EVERY lead in the database,
+    // unfiltered, momentarily replacing the today-only list with all-time
+    // data (the "50 leads dumped instantly" glitch). The next pull-to-
+    // refresh or focus event correctly re-applied the today filter, making
+    // it look like leads "disappeared" — they were just the correct
+    // today-only set reasserting itself. Always refetch with the exact
+    // same filters the rest of this screen uses.
+    await fetchLeads({
+      search: search || undefined,
+      status: activeFilter !== 'All' ? activeFilter as any : undefined,
+      dateFrom: getTodayFilter(),
+      dateTo: getTodayFilter(),
+    });
   };
 
 

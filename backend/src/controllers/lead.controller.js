@@ -4,7 +4,7 @@ const User = require('../models/User.model');
 const FollowUp = require('../models/FollowUp.model');
 const asyncHandler = require('../utils/asyncHandler');
 const { normalizePhone } = require('../middleware/leadValidators');
-const { startOfDay, endOfDay, todayString } = require('../utils/dateRange');
+const { startOfDay, endOfDay, todayString, startOfMonth } = require('../utils/dateRange');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -229,16 +229,32 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
       updatedAt: { $gte: todayStart, $lte: todayEnd },
     };
 
+    // "My Lead Status" grid (Hot/Warm/Cold/Follow Up/Total) shows ONLY
+    // today's leads — matches the My Leads screen, which is also
+    // today-scoped for employees. `todayFilter` mirrors `filter` but adds
+    // the createdAt window.
+    const todayFilter = { ...filter, createdAt: { $gte: todayStart, $lte: todayEnd } };
+
+    // This calendar month's total leads (booked + unbooked) — used by the
+    // "Month's Performance" card, separate from the today-scoped grid above.
+    const monthStart = startOfMonth();
+    const monthLeadsQuery = { ...filter, createdAt: { $gte: monthStart } };
+
     const [
-      total, hot, warm, cold, followUp, booked,
+      totalToday, hot, warm, cold, followUp, bookedAllTime, totalAllTime,
       todayLeadsCount, previousPendingCount, bookedToday, todayFollowUps,
+      monthLeadsCount,
     ] = await Promise.all([
-      Lead.countDocuments(filter),
-      Lead.countDocuments({ ...filter, status: 'Hot' }),
-      Lead.countDocuments({ ...filter, status: 'Warm' }),
-      Lead.countDocuments({ ...filter, status: 'Cold' }),
-      Lead.countDocuments({ ...filter, status: 'Follow Up' }),
+      Lead.countDocuments(todayFilter),
+      Lead.countDocuments({ ...todayFilter, status: 'Hot' }),
+      Lead.countDocuments({ ...todayFilter, status: 'Warm' }),
+      Lead.countDocuments({ ...todayFilter, status: 'Cold' }),
+      Lead.countDocuments({ ...todayFilter, status: 'Follow Up' }),
+      // Booked / total stay all-time — needed for the "All Booked" screen
+      // and for a conversion rate that's meaningful (not skewed by a
+      // single day's small sample size).
       Lead.countDocuments({ ...filter, status: 'Booked' }),
+      Lead.countDocuments(filter),
       Lead.countDocuments(todayLeadsQuery),
       Lead.countDocuments(pendingLeadsQuery),
       Lead.countDocuments(bookedTodayQuery),
@@ -247,18 +263,26 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
         date: todayString(),
         isCompleted: false,
       }),
+      Lead.countDocuments(monthLeadsQuery),
     ]);
 
+    const conversionRate = totalAllTime > 0
+      ? Math.round((bookedAllTime / totalAllTime) * 100)
+      : 0;
+
     return res.json({
-      totalLeads: total,
+      totalLeads: totalToday,
       newToday: todayLeadsCount,
-      hot, warm, cold, followUp, booked,
+      hot, warm, cold, followUp,
+      booked: bookedAllTime,
+      conversionRate,
       todayFollowUps,
       pending: previousPendingCount,
       // New fields for employee dashboard
       todayLeadsCount,
       previousPendingCount,
       bookedToday,
+      monthLeadsCount,
     });
   }
 
@@ -326,6 +350,29 @@ exports.getEmployeePendingLeads = asyncHandler(async (req, res) => {
     .sort({ isPinned: -1, createdAt: -1 });
 
   res.json({ leads, total: leads.length });
+});
+
+// GET /leads/employee-booked — Employee: booked leads.
+// ?scope=today (default) = booked today only. ?scope=all = every booked
+// lead regardless of date, for the dashboard's "All Booked" card.
+exports.getEmployeeBookedLeads = asyncHandler(async (req, res) => {
+  const { _id } = req.user;
+  const { scope = 'today' } = req.query;
+
+  const filter = { assignedTo: _id, status: 'Booked' };
+
+  if (scope === 'today') {
+    const todayStart = startOfDay();
+    const todayEnd = endOfDay();
+    filter.updatedAt = { $gte: todayStart, $lte: todayEnd };
+  }
+  // scope === 'all' -> no date restriction, every booked lead ever assigned.
+
+  const leads = await Lead.find(filter)
+    .populate('assignedTo', 'name email')
+    .sort({ isPinned: -1, updatedAt: -1 });
+
+  res.json({ leads, total: leads.length, scope });
 });
 
 // POST /leads — create lead (both admin and employee)

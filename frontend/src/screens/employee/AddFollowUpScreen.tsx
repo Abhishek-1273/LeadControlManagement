@@ -39,11 +39,26 @@ export default function AddFollowUpScreen() {
     });
   };
 
+  // FIX: date.toISOString().split('T')[0] converts to UTC before reading
+  // the calendar date. In IST (UTC+5:30), any follow-up picked between
+  // 12:00 AM and 5:30 AM local time rolls back to the PREVIOUS day in UTC
+  // — e.g. picking "20 Jun, 1:00 AM IST" saves as "2026-06-19". The backend's
+  // "Today's Follow-ups" query compares against todayString(), which is
+  // correctly timezone-aware (Asia/Kolkata), so it never matched — the
+  // follow-up silently never showed up on the dashboard. Build the
+  // YYYY-MM-DD string from the device's local calendar fields instead.
+  const toLocalDateString = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleSave = async () => {
     setIsLoading(true);
     try {
       await axiosInstance.post(`/leads/${leadId}/followup`, {
-        date: date.toISOString().split('T')[0],
+        date: toLocalDateString(date),
         time: formatTime(time),
         notes,
       });

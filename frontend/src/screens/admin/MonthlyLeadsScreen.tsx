@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, SectionList, TouchableOpacity,
-  TextInput, RefreshControl, ActivityIndicator,
+  View, Text, StyleSheet, SectionList, TouchableOpacity, ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,8 +11,6 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
-const STATUS_OPTIONS = ['All', 'Hot', 'Warm', 'Cold', 'Follow Up', 'Booked'];
-
 const STATUS_COLORS: Record<string, string> = {
   Hot: '#EF4444',
   Warm: '#F59E0B',
@@ -21,7 +19,7 @@ const STATUS_COLORS: Record<string, string> = {
   Booked: '#059669',
 };
 
-// ─── Date label helper ────────────────────────────────────────────────────────
+// ─── Date label helper (local-calendar based, matches localDateKey below) ──────
 function getDateLabel(dateStr: string): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -35,20 +33,12 @@ function getDateLabel(dateStr: string): string {
   if (date.getTime() === today.getTime()) return '📅 Today';
   if (date.getTime() === yesterday.getTime()) return '📅 Yesterday';
 
-  return '📅 ' + date.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
-  });
+  return '📅 ' + date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 }
 
-// ─── Group leads by date ──────────────────────────────────────────────────────
-// FIX: previously used `new Date(lead.createdAt).toISOString().split('T')[0]`,
-// which groups by UTC date. getDateLabel() below compares against the
-// DEVICE's local "today"/"yesterday" — mixing UTC grouping with local
-// comparison meant a lead created late at night in IST (e.g. 12:30 AM)
-// could be filed under "Yesterday" even though it was created today. Group
-// by the local calendar date instead, so it's consistent with the label.
+// Group by the device's local calendar date (not UTC) — same fix pattern
+// used in LeadArchiveScreen, so a lead created late at night IST lands
+// under the correct day instead of the previous day in UTC.
 function localDateKey(dateStr: string): string {
   const d = new Date(dateStr);
   const year = d.getFullYear();
@@ -66,8 +56,6 @@ function groupLeadsByDate(leads: any[]) {
     groups[dateKey].push(lead);
   });
 
-  // Sort dates descending (newest first). Parse as local date (not UTC) to
-  // stay consistent with localDateKey above.
   return Object.entries(groups)
     .sort(([a], [b]) => {
       const [ay, am, ad] = a.split('-').map(Number);
@@ -121,15 +109,13 @@ function SectionHeader({ title, count }: { title: string; count: number }) {
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-export default function LeadArchiveScreen() {
+export default function MonthlyLeadsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { fetchAllLeads } = useAdminStore();
 
   const [allLeads, setAllLeads] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('All');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
@@ -137,17 +123,20 @@ export default function LeadArchiveScreen() {
 
   const LIMIT = 50;
 
+  const now = new Date();
+  const monthLabel = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  const monthParam = String(now.getMonth() + 1);
+  const yearParam = String(now.getFullYear());
+
   const loadLeads = useCallback(async (pageNum = 1, reset = true) => {
     setLoading(true);
     try {
-      const filters: Record<string, string> = {
+      const result = await fetchAllLeads({
+        month: monthParam,
+        year: yearParam,
         page: String(pageNum),
         limit: String(LIMIT),
-      };
-      if (search.trim()) filters.search = search.trim();
-      if (status !== 'All') filters.status = status;
-
-      const result = await fetchAllLeads(filters);
+      });
 
       if (reset) {
         setAllLeads(result.leads);
@@ -157,21 +146,16 @@ export default function LeadArchiveScreen() {
       setTotal(result.total);
       setHasMore(result.leads.length === LIMIT);
     } catch (err) {
-      console.error('Archive fetch error:', err);
+      console.error('Monthly leads fetch error:', err);
     } finally {
       setLoading(false);
     }
-  }, [search, status]);
+  }, [monthParam, yearParam]);
 
   useEffect(() => {
     setPage(1);
     loadLeads(1, true);
-  }, [status]);
-
-  const onSearch = () => {
-    setPage(1);
-    loadLeads(1, true);
-  };
+  }, [loadLeads]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -198,52 +182,9 @@ export default function LeadArchiveScreen() {
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={styles.title}>Lead Archive</Text>
-          <Text style={styles.subtitle}>{total} leads stored permanently</Text>
+          <Text style={styles.title}>Monthly Leads</Text>
+          <Text style={styles.subtitle}>{monthLabel} · {total} leads</Text>
         </View>
-      </View>
-
-      {/* Search */}
-      <View style={styles.searchRow}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color={colors.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name or phone..."
-            value={search}
-            onChangeText={setSearch}
-            onSubmitEditing={onSearch}
-            returnKeyType="search"
-            placeholderTextColor={colors.textLight}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => {
-              setSearch('');
-              setTimeout(() => loadLeads(1, true), 50);
-            }}>
-              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
-          )}
-        </View>
-        <TouchableOpacity style={styles.searchBtn} onPress={onSearch}>
-          <Ionicons name="search" size={18} color={colors.white} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Status Filter Chips */}
-      <View style={styles.chipRow}>
-        {STATUS_OPTIONS.map((s) => (
-          <TouchableOpacity
-            key={s}
-            style={[styles.chip, status === s && styles.chipActive]}
-            onPress={() => setStatus(s)}
-          >
-            {s !== 'All' && (
-              <View style={[styles.chipDot, { backgroundColor: STATUS_COLORS[s] || colors.textSecondary }]} />
-            )}
-            <Text style={[styles.chipText, status === s && styles.chipTextActive]}>{s}</Text>
-          </TouchableOpacity>
-        ))}
       </View>
 
       {/* Date-grouped SectionList */}
@@ -283,11 +224,8 @@ export default function LeadArchiveScreen() {
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>
-              <Ionicons name="archive-outline" size={56} color={colors.textLight} />
-              <Text style={styles.emptyTitle}>No leads found</Text>
-              <Text style={styles.emptySubText}>
-                {search ? 'Try a different search term' : 'No archived leads yet'}
-              </Text>
+              <Ionicons name="calendar-outline" size={56} color={colors.textLight} />
+              <Text style={styles.emptyTitle}>No leads this month</Text>
             </View>
           ) : null
         }
@@ -325,72 +263,6 @@ const styles = StyleSheet.create({
     fontSize: typography.xs,
     color: colors.textSecondary,
     marginTop: 1,
-  },
-
-  searchRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.base,
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  searchBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    height: 44,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: typography.base,
-    color: colors.textPrimary,
-  },
-  searchBtn: {
-    width: 44, height: 44,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  chipRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.base,
-    gap: 6,
-    marginBottom: spacing.sm,
-    flexWrap: 'wrap',
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    gap: 4,
-  },
-  chipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  chipDot: {
-    width: 7, height: 7, borderRadius: 4,
-  },
-  chipText: {
-    fontSize: typography.xs,
-    color: colors.textSecondary,
-    fontWeight: typography.medium,
-  },
-  chipTextActive: {
-    color: colors.white,
-    fontWeight: typography.semiBold,
   },
 
   // Section Header
@@ -488,11 +360,6 @@ const styles = StyleSheet.create({
     fontSize: typography.lg,
     fontWeight: typography.semiBold,
     color: colors.textSecondary,
-  },
-  emptySubText: {
-    fontSize: typography.sm,
-    color: colors.textLight,
-    textAlign: 'center',
   },
   endMessage: {
     flexDirection: 'row',

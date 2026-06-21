@@ -9,6 +9,17 @@ const appointmentSchema = new mongoose.Schema({
   appointmentDate: { type: String, required: true }, // e.g. "2024-06-25"
   appointmentTime: { type: String, required: true }, // e.g. "16:00"
   description: { type: String, default: '' },
+  // 'scheduled' = default/upcoming. 'completed' = admin ticked it done.
+  // 'missed' is settable by admin too, but the app also derives an
+  // "overdue" visual state client-side for scheduled appointments whose
+  // date/time has passed — that derived state does NOT auto-write here,
+  // so a scheduled appointment can show as "Missed" in the UI while still
+  // being 'scheduled' in the DB until the admin explicitly marks it.
+  status: {
+    type: String,
+    enum: ['scheduled', 'completed', 'missed'],
+    default: 'scheduled',
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

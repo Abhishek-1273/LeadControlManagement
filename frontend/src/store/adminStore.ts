@@ -31,14 +31,18 @@ export interface EmployeePerformance {
 }
 
 interface AdminStats {
-  totalLeads: number;
+  monthLeads: number;
   todayLeads: number;
   hot: number;
   warm: number;
   cold: number;
   followUp: number;
   booked: number;
-  totalEmployees: number;
+  allBooked: number;
+  activeEmployees: number;
+  conversionRate: number;
+  appointmentsToday: number;
+  pendingLeads: number;
 }
 
 export interface MonthlyTrendPoint {
@@ -73,14 +77,17 @@ interface AdminStore {
   fetchAppointments: () => Promise<void>;
   fetchAppointmentById: (id: string) => Promise<void>;
   updateAppointment: (id: string, data: any) => Promise<void>;
+  setAppointmentStatus: (id: string, status: 'scheduled' | 'completed' | 'missed') => Promise<void>;
 }
 
 export const useAdminStore = create<AdminStore>((set, get) => ({
   employees: [],
   selectedEmployee: null,
   stats: {
-    totalLeads: 0, todayLeads: 0, hot: 0,
-    warm: 0, cold: 0, followUp: 0, booked: 0, totalEmployees: 0,
+    monthLeads: 0, todayLeads: 0, hot: 0,
+    warm: 0, cold: 0, followUp: 0, booked: 0, allBooked: 0,
+    activeEmployees: 0, conversionRate: 0,
+    appointmentsToday: 0, pendingLeads: 0,
   },
   performanceData: [],
   monthlyTrend: [],
@@ -206,6 +213,15 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   updateAppointment: async (id, data) => {
     try {
       await axiosInstance.patch(`/admin/appointments/${id}`, data);
+      await get().fetchAppointments();
+    } catch (err: any) {
+      throw err;
+    }
+  },
+
+  setAppointmentStatus: async (id, status) => {
+    try {
+      await axiosInstance.patch(`/admin/appointments/${id}/status`, { status });
       await get().fetchAppointments();
     } catch (err: any) {
       throw err;

@@ -22,18 +22,21 @@ interface DashboardStats {
   cold: number;
   followUp: number;
   booked: number;
+  conversionRate: number;
   todayFollowUps: number;
   pending: number;
   // New employee-specific fields
   todayLeadsCount: number;
   previousPendingCount: number;
   bookedToday: number;
+  monthLeadsCount: number;
 }
 
 interface LeadStore {
   leads: Lead[];
   todayLeads: Lead[];
   pendingLeads: Lead[];
+  bookedLeads: Lead[];
   selectedLead: Lead | null;
   followUps: any[];
   stats: DashboardStats;
@@ -46,6 +49,7 @@ interface LeadStore {
   fetchTodayFollowUps: () => Promise<void>;
   fetchEmployeeTodayLeads: () => Promise<void>;
   fetchEmployeePendingLeads: () => Promise<void>;
+  fetchEmployeeBookedLeads: (scope?: 'today' | 'all') => Promise<void>;
   createLead: (data: CreateLeadPayload) => Promise<void>;
   updateStatus: (id: string, status: string) => Promise<void>;
   addNote: (id: string, note: string) => Promise<void>;
@@ -58,6 +62,7 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
   leads: [],
   todayLeads: [],
   pendingLeads: [],
+  bookedLeads: [],
   selectedLead: null,
   followUps: [],
   stats: {
@@ -68,11 +73,13 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
     cold: 0,
     followUp: 0,
     booked: 0,
+    conversionRate: 0,
     todayFollowUps: 0,
     pending: 0,
     todayLeadsCount: 0,
     previousPendingCount: 0,
     bookedToday: 0,
+    monthLeadsCount: 0,
   },
   isLoading: false,
   error: null,
@@ -115,11 +122,13 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
           cold: res.data.cold ?? 0,
           followUp: res.data.followUp ?? 0,
           booked: res.data.booked ?? 0,
+          conversionRate: res.data.conversionRate ?? 0,
           todayFollowUps: res.data.todayFollowUps ?? 0,
           pending: res.data.pending ?? 0,
           todayLeadsCount: res.data.todayLeadsCount ?? 0,
           previousPendingCount: res.data.previousPendingCount ?? 0,
           bookedToday: res.data.bookedToday ?? 0,
+          monthLeadsCount: res.data.monthLeadsCount ?? 0,
         },
       });
     } catch (err: any) {
@@ -144,6 +153,19 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
     } catch (err: any) {
       console.error(
         'fetchEmployeePendingLeads error:',
+        err.response?.status,
+        err.response?.data?.message || err.message
+      );
+    }
+  },
+
+  fetchEmployeeBookedLeads: async (scope = 'today') => {
+    try {
+      const res = await axiosInstance.get(`/leads/employee-booked?scope=${scope}`);
+      set({ bookedLeads: res.data.leads || [] });
+    } catch (err: any) {
+      console.error(
+        'fetchEmployeeBookedLeads error:',
         err.response?.status,
         err.response?.data?.message || err.message
       );

@@ -30,6 +30,14 @@ export default function AssignLeadScreen() {
       e.email.toLowerCase().includes(search.toLowerCase())
     );
 
+  const getTodayFilter = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleAssign = async () => {
     if (!selected) {
       Toast.show({
@@ -42,7 +50,13 @@ export default function AssignLeadScreen() {
     setIsLoading(true);
     try {
       await assignLead(leadId, selected);
-      await fetchLeads();
+      // FIX: previously called fetchLeads() with no arguments. For an admin,
+      // that returns EVERY lead in the database (no date scoping), which
+      // briefly poisons the shared leadStore.leads that AdminLeadsScreen
+      // reads from — causing the same "all leads dumped, then disappear on
+      // refresh" glitch reported on the Add Lead flow. Scope this refetch
+      // to today, matching AdminLeadsScreen's own filter.
+      await fetchLeads({ dateFrom: getTodayFilter(), dateTo: getTodayFilter() });
       Toast.show({
         type: 'success',
         text1: 'Lead Assigned ✅',
@@ -123,15 +137,15 @@ export default function AssignLeadScreen() {
               activeOpacity={0.7}
             >
               <View style={[styles.avatar,
-                isSelected && styles.avatarSelected]}>
+              isSelected && styles.avatarSelected]}>
                 <Text style={[styles.avatarText,
-                  isSelected && { color: colors.white }]}>
+                isSelected && { color: colors.white }]}>
                   {item.name.charAt(0).toUpperCase()}
                 </Text>
               </View>
               <View style={styles.empInfo}>
                 <Text style={[styles.empName,
-                  isSelected && { color: colors.primary }]}>
+                isSelected && { color: colors.primary }]}>
                   {item.name}
                 </Text>
                 <Text style={styles.empEmail}>{item.email}</Text>

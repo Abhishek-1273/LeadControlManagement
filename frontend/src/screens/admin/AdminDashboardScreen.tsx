@@ -18,19 +18,35 @@ const { width } = Dimensions.get('window');
 const CHART_WIDTH = width - spacing.base * 2 - 32;
 
 const StatCard = ({
-  icon, label, value, bgColor, iconColor, onPress
+  icon, label, value, bgColor, iconColor, onPress, suffix, subLabel, fullWidth,
 }: {
   icon: string; label: string; value: number;
   bgColor: string; iconColor: string; onPress?: () => void;
+  suffix?: string; subLabel?: string; fullWidth?: boolean;
 }) => (
   <TouchableOpacity
-    style={[styles.statCard, { backgroundColor: bgColor }]}
+    style={[
+      styles.statCard,
+      { backgroundColor: bgColor },
+      fullWidth && styles.statCardFullWidth,
+    ]}
     onPress={onPress}
     activeOpacity={onPress ? 0.7 : 1}
   >
     <Ionicons name={icon as any} size={24} color={iconColor} />
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
+    {fullWidth ? (
+      <View style={styles.statTextColLeft}>
+        <Text style={styles.statValue}>{value}{suffix || ''}</Text>
+        <Text style={[styles.statLabel, styles.statLabelLeft]}>{label}</Text>
+        {subLabel ? <Text style={[styles.statSubLabel, styles.statLabelLeft]}>{subLabel}</Text> : null}
+      </View>
+    ) : (
+      <>
+        <Text style={styles.statValue}>{value}{suffix || ''}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
+        {subLabel ? <Text style={styles.statSubLabel}>{subLabel}</Text> : null}
+      </>
+    )}
   </TouchableOpacity>
 );
 
@@ -101,6 +117,14 @@ export default function AdminDashboardScreen() {
     .sort((a, b) => b.bookedToday - a.bookedToday || b.totalBooked - a.totalBooked)
     .slice(0, 5);
 
+  // "1–21 Jun" style label for the Monthly Leads card — 1st of the current
+  // month through today, in the device's local calendar.
+  const monthRangeLabel = React.useMemo(() => {
+    const now = new Date();
+    const monthShort = now.toLocaleDateString('en-IN', { month: 'short' });
+    return `1–${now.getDate()} ${monthShort}`;
+  }, []);
+
   return (
     <SafeAreaView style={[styles.container, { height }]} edges={['top']}>
       <ScrollView
@@ -127,35 +151,73 @@ export default function AdminDashboardScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* ── Monthly Leads — standalone achievement card ── */}
+        <TouchableOpacity
+          style={styles.monthlyLeadsCard}
+          onPress={() => navigation.navigate('MonthlyLeads')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.monthlyLeadsIconWrap}>
+            <Ionicons name="trophy" size={26} color={colors.primaryDark} />
+          </View>
+          <View style={styles.monthlyLeadsTextWrap}>
+            <Text style={styles.monthlyLeadsValue}>{stats.monthLeads}</Text>
+            <Text style={styles.monthlyLeadsLabel}>Monthly Leads</Text>
+            <Text style={styles.monthlyLeadsSub}>{monthRangeLabel} · every employee combined</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.primaryDark} />
+        </TouchableOpacity>
+
         {/* Stats Row 1 */}
         <View style={styles.statsRow}>
-          <StatCard icon="people" label="Total Leads" value={stats.totalLeads}
-            bgColor="#E8F8F2" iconColor={colors.primary}
-            onPress={() => navigation.navigate('AdminLeads')} />
           <StatCard icon="today" label="Today Leads" value={stats.todayLeads}
             bgColor="#FEF9E7" iconColor="#F59E0B" />
-          <StatCard icon="person-circle" label="Employees" value={stats.totalEmployees}
+          <StatCard icon="person-circle" label="Active Employees" value={stats.activeEmployees}
             bgColor="#EEF2FF" iconColor="#6366F1"
             onPress={() => navigation.navigate('AdminEmployees')} />
         </View>
 
-        {/* Stats Row 2 — today's status breakdown (not all-time) */}
+        {/* Stats Row 2 — today's status breakdown, all employees combined */}
         <View style={styles.statsRow}>
           <StatCard icon="flame" label="Hot Today" value={stats.hot}
             bgColor="#FEF2F2" iconColor="#EF4444" />
           <StatCard icon="sunny" label="Warm Today" value={stats.warm}
             bgColor="#FFFBEB" iconColor="#F59E0B" />
+          <StatCard icon="snow" label="Cold Today" value={stats.cold}
+            bgColor="#EFF6FF" iconColor="#3B82F6" />
+        </View>
+
+        {/* Stats Row 3 — booking pair: today vs lifetime */}
+        <View style={styles.statsRow}>
           <StatCard icon="checkmark-circle" label="Booked Today" value={stats.booked}
             bgColor="#F0FFF4" iconColor="#059669" />
+          <StatCard icon="trophy" label="All Booked" value={stats.allBooked}
+            bgColor="#FFFBEB" iconColor="#B45309" />
+        </View>
+
+        {/* Stats Row 4 — performance pair: conversion vs what's still pending */}
+        <View style={styles.statsRow}>
+          <StatCard icon="trending-up" label="Conversion (Month)" value={stats.conversionRate}
+            suffix="%" bgColor="#ECFDF5" iconColor="#059669" />
+          <StatCard icon="hourglass" label="Pending Leads" value={stats.pendingLeads}
+            bgColor="#FEF3C7" iconColor="#B45309" />
+        </View>
+
+        {/* Stats Row 5 — appointments, alone, full width */}
+        <View style={styles.statsRow}>
+          <StatCard icon="calendar" label="Appointments Today" value={stats.appointmentsToday}
+            bgColor="#F3E8FF" iconColor="#8B5CF6"
+            onPress={() => navigation.navigate('AdminAppointments')}
+            fullWidth />
         </View>
 
         {/* Bar Chart */}
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
             <Ionicons name="bar-chart" size={18} color={colors.primary} />
-            <Text style={styles.cardTitle}>Today's Leads by Status</Text>
+            <Text style={styles.cardTitle}>Leads by Status</Text>
           </View>
-          {stats.todayLeads > 0 ? (
+          {(stats.hot + stats.warm + stats.cold + stats.followUp + stats.booked) > 0 ? (
             <BarChart
               data={statusChartData}
               width={CHART_WIDTH}
@@ -316,6 +378,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row', paddingHorizontal: spacing.base,
     gap: spacing.sm, marginBottom: spacing.lg, marginTop: spacing.xs,
   },
+  monthlyLeadsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F8F2',
+    marginHorizontal: spacing.base,
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
+    borderRadius: 16,
+    padding: spacing.base,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  monthlyLeadsIconWrap: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center', alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  monthlyLeadsTextWrap: { flex: 1 },
+  monthlyLeadsValue: {
+    fontSize: 26, fontWeight: '800', color: colors.primaryDark, lineHeight: 30,
+  },
+  monthlyLeadsLabel: {
+    fontSize: typography.base, fontWeight: typography.semiBold, color: colors.textPrimary,
+  },
+  monthlyLeadsSub: {
+    fontSize: typography.xs, color: colors.primaryDark, marginTop: 1,
+  },
   statCard: {
     flex: 1, borderRadius: 16, padding: spacing.sm,
     alignItems: 'center', gap: 4, minHeight: 90,
@@ -327,6 +422,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.5)',
   },
+  statCardFullWidth: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    gap: spacing.md,
+    minHeight: 64,
+  },
+  statTextColLeft: {
+    alignItems: 'flex-start',
+    gap: 2,
+  },
+  statLabelLeft: {
+    textAlign: 'left',
+  },
   statValue: {
     fontSize: typography.xl, fontWeight: typography.bold,
     color: colors.textPrimary,
@@ -334,6 +442,10 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: typography.xs, color: colors.textSecondary,
     textAlign: 'center',
+  },
+  statSubLabel: {
+    fontSize: 10, color: colors.textLight,
+    textAlign: 'center', marginTop: -2,
   },
   card: {
     backgroundColor: colors.white, marginHorizontal: spacing.base,

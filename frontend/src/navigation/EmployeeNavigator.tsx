@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DashboardScreen from '../screens/employee/DashboardScreen';
 import LeadListScreen from '../screens/employee/LeadListScreen';
+import PreviousPendingScreen from '../screens/employee/PreviousPendingScreen';
+import BookedLeadsScreen from '../screens/employee/BookedLeadsScreen';
 import LeadDetailScreen from '../screens/employee/LeadDetailScreen';
 import AddFollowUpScreen from '../screens/employee/AddFollowUpScreen';
 import AddNoteScreen from '../screens/employee/AddNoteScreen';
@@ -64,6 +66,8 @@ export default function EmployeeNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs" component={TabNavigator} />
+      <Stack.Screen name="PreviousPendingLeads" component={PreviousPendingScreen} />
+      <Stack.Screen name="BookedLeads" component={BookedLeadsScreen} />
       <Stack.Screen name="LeadDetail" component={LeadDetailScreen} />
       <Stack.Screen name="AddFollowUp" component={AddFollowUpScreen} />
       <Stack.Screen name="AddNote" component={AddNoteScreen} />

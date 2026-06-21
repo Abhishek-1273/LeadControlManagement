@@ -17,6 +17,8 @@ import AssignLeadScreen from '../screens/admin/AssignLeadScreen';
 import AppointmentsScreen from '../screens/admin/AppointmentsScreen';
 import PerformanceDashboardScreen from '../screens/admin/PerformanceDashboardScreen';
 import LeadArchiveScreen from '../screens/admin/LeadArchiveScreen';
+import MonthlyLeadsScreen from '../screens/admin/MonthlyLeadsScreen';
+import AdminScheduleScreen from '../screens/admin/AdminScheduleScreen';
 
 // Common Screens
 import SidebarScreen from '../screens/common/SidebarScreen';
@@ -28,6 +30,7 @@ import TermsScreen from '../screens/common/TermsScreen';
 import PrivacyScreen from '../screens/common/PrivacyScreen';
 import HelpSupportScreen from '../screens/common/HelpSupportScreen';
 import SendNotificationScreen from '../screens/admin/SendNotificationScreen';
+import AddNoteScreen from '../screens/employee/AddNoteScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -90,6 +93,9 @@ export default function AdminNavigator() {
       <Stack.Screen name="AssignLead" component={AssignLeadScreen} />
       <Stack.Screen name="AdminPerformance" component={PerformanceDashboardScreen} />
       <Stack.Screen name="LeadArchive" component={LeadArchiveScreen} />
+      <Stack.Screen name="MonthlyLeads" component={MonthlyLeadsScreen} />
+      <Stack.Screen name="AddNote" component={AddNoteScreen} />
+      <Stack.Screen name="AdminSchedule" component={AdminScheduleScreen} />
       <Stack.Screen name="Sidebar" component={SidebarScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />

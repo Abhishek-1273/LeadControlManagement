@@ -60,4 +60,18 @@ function startOfDaysAgo(n, date = new Date()) {
   return new Date(start.getTime() - n * 24 * 60 * 60 * 1000);
 }
 
-module.exports = { APP_TZ, todayString, startOfDay, endOfDay, startOfDaysAgo };
+// UTC Date corresponding to local midnight on the 1st of the current
+// month in APP_TZ. Used for "this month's performance" stats.
+function startOfMonth(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: APP_TZ,
+    year: 'numeric',
+    month: '2-digit',
+  }).format(date);
+  const [year, month] = parts.split('-');
+  const asUTC = new Date(`${year}-${month}-01T00:00:00Z`);
+  const offsetMin = tzOffsetMinutes(asUTC);
+  return new Date(asUTC.getTime() - offsetMin * 60 * 1000);
+}
+
+module.exports = { APP_TZ, todayString, startOfDay, endOfDay, startOfDaysAgo, startOfMonth };

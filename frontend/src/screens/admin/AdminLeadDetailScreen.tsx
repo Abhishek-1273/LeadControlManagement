@@ -25,6 +25,15 @@ const ALL_STATUSES: LeadStatus[] = [
   'Hot', 'Warm', 'Cold', 'Follow Up', 'Booked',
 ];
 
+const TIMELINE_ICONS: Record<string, string> = {
+  created: 'add-circle',
+  status_changed: 'flag',
+  note_added: 'document-text',
+  followup_added: 'calendar',
+  assigned: 'swap-horizontal',
+  appointment_set: 'time',
+};
+
 const InfoRow = ({ icon, label, value }: any) => (
   <View style={styles.infoRow}>
     <View style={styles.infoIcon}>
@@ -44,6 +53,7 @@ export default function AdminLeadDetailScreen() {
   const { selectedLead, fetchLeadById, updateStatus, isLoading } =
     useLeadStore();
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showTimelineModal, setShowTimelineModal] = useState(false);
 
   useEffect(() => {
     if (leadId) fetchLeadById(leadId);
@@ -162,25 +172,22 @@ export default function AdminLeadDetailScreen() {
 
           <TouchableOpacity
             style={styles.actionBtn}
-            onPress={() => navigation.navigate('AssignLead', {
-              leadId: lead._id,
-              currentEmployee: lead.assignedTo,
-            })}
+            onPress={() => navigation.navigate('AddNote', { leadId: lead._id })}
           >
             <View style={[styles.actionIcon, { backgroundColor: '#EEF2FF' }]}>
-              <Ionicons name="swap-horizontal" size={22} color="#6366F1" />
+              <Ionicons name="document-text" size={22} color="#6366F1" />
             </View>
-            <Text style={styles.actionLabel}>Reassign</Text>
+            <Text style={styles.actionLabel}>Add Note</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.actionBtn}
-            onPress={() => setShowStatusModal(true)}
+            onPress={() => setShowTimelineModal(true)}
           >
             <View style={[styles.actionIcon, { backgroundColor: '#FEF9E7' }]}>
-              <Ionicons name="flag" size={22} color="#F59E0B" />
+              <Ionicons name="time" size={22} color="#F59E0B" />
             </View>
-            <Text style={styles.actionLabel}>Status</Text>
+            <Text style={styles.actionLabel}>Timeline</Text>
           </TouchableOpacity>
         </View>
 
@@ -266,6 +273,47 @@ export default function AdminLeadDetailScreen() {
                   </TouchableOpacity>
                 );
               })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Timeline Modal */}
+      {showTimelineModal && (
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          onPress={() => setShowTimelineModal(false)}
+          activeOpacity={1}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Activity Timeline</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {lead.timeline && lead.timeline.length > 0 ? (
+                [...lead.timeline]
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((entry) => (
+                    <View key={entry._id} style={styles.timelineRow}>
+                      <View style={styles.timelineIconWrap}>
+                        <Ionicons
+                          name={(TIMELINE_ICONS[entry.type] || 'ellipse') as any}
+                          size={16}
+                          color={colors.primary}
+                        />
+                      </View>
+                      <View style={styles.timelineContent}>
+                        <Text style={styles.timelineDescription}>{entry.description}</Text>
+                        <Text style={styles.timelineTime}>
+                          {new Date(entry.createdAt).toLocaleString('en-IN', {
+                            day: '2-digit', month: 'short', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit', hour12: true,
+                          })}
+                        </Text>
+                      </View>
+                    </View>
+                  ))
+              ) : (
+                <Text style={styles.timelineEmptyText}>No activity recorded yet</Text>
+              )}
             </ScrollView>
           </View>
         </TouchableOpacity>
@@ -399,5 +447,26 @@ const styles = StyleSheet.create({
   statusOptionActive: { backgroundColor: colors.primaryLight },
   statusOptionText: {
     flex: 1, fontSize: typography.base, color: colors.textPrimary,
+  },
+  timelineRow: {
+    flexDirection: 'row', gap: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+  },
+  timelineIconWrap: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  timelineContent: { flex: 1 },
+  timelineDescription: {
+    fontSize: typography.sm, color: colors.textPrimary,
+  },
+  timelineTime: {
+    fontSize: typography.xs, color: colors.textSecondary, marginTop: 2,
+  },
+  timelineEmptyText: {
+    fontSize: typography.sm, color: colors.textSecondary,
+    textAlign: 'center', paddingVertical: spacing.xl,
   },
 });

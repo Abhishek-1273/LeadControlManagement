@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  KeyboardAvoidingView, Platform, TextInput, Modal,
+  KeyboardAvoidingView, Platform, TextInput, Modal, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 import axiosInstance from '../../api/axiosInstance';
+import { useScheduleStore, AvailableSlot } from '../../store/scheduleStore';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -38,6 +39,14 @@ const displayTime = (d: Date) => {
   return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 };
 
+// "14:30" -> "2:30 PM"
+const displaySlotTime = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return displayTime(d);
+};
+
 // ── Picker button ─────────────────────────────────────────────────────────────
 function PickerButton({
   icon, label, value, placeholder, onPress,
@@ -60,14 +69,14 @@ function PickerButton({
 
 const pickerStyles = StyleSheet.create({
   group: { gap: 6 },
-  label: { fontSize: typography.sm, fontWeight: '600' as any, color: colors.text },
+  label: { fontSize: typography.sm, fontWeight: '600' as any, color: colors.textPrimary },
   btn: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: colors.white, borderRadius: 14,
     borderWidth: 1.5, borderColor: colors.border,
     paddingHorizontal: 14, paddingVertical: 14,
   },
-  btnText: { flex: 1, fontSize: typography.sm, color: colors.text, fontWeight: '500' as any },
+  btnText: { flex: 1, fontSize: typography.sm, color: colors.textPrimary, fontWeight: '500' as any },
 });
 
 // ── iOS modal wrapper (shows picker inside a bottom sheet) ────────────────────
@@ -117,16 +126,38 @@ export default function BookAppointmentScreen() {
 
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTime, setSelectedTime] = useState<Date | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Android shows inline; iOS needs modal
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
   // Temp values while picker is open (iOS)
   const [tempDate, setTempDate] = useState<Date>(today);
-  const [tempTime, setTempTime] = useState<Date>(today);
+
+  const { fetchSlots } = useScheduleStore();
+  const [slots, setSlots] = useState<AvailableSlot[]>([]);
+  const [isWorkingDay, setIsWorkingDay] = useState(true);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+
+  // Whenever the date changes, fetch the admin's availability for that day
+  // (their working hours + break, minus anything already booked).
+  useEffect(() => {
+    if (!selectedDate) return;
+    setSelectedSlot(null);
+    setSlotsLoading(true);
+    fetchSlots(formatDate(selectedDate))
+      .then((res) => {
+        if (res) {
+          setSlots(res.slots);
+          setIsWorkingDay(res.isWorking);
+        } else {
+          setSlots([]);
+          setIsWorkingDay(true);
+        }
+      })
+      .finally(() => setSlotsLoading(false));
+  }, [selectedDate]);
 
   const onDateChange = (_: any, date?: Date) => {
     if (Platform.OS === 'android') {
@@ -137,22 +168,13 @@ export default function BookAppointmentScreen() {
     }
   };
 
-  const onTimeChange = (_: any, time?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowTimePicker(false);
-      if (time) setSelectedTime(time);
-    } else {
-      if (time) setTempTime(time);
-    }
-  };
-
   const handleBook = async () => {
     if (!selectedDate) {
       Toast.show({ type: 'error', text1: 'Date required ❌', text2: 'Please select an appointment date' });
       return;
     }
-    if (!selectedTime) {
-      Toast.show({ type: 'error', text1: 'Time required ❌', text2: 'Please select an appointment time' });
+    if (!selectedSlot) {
+      Toast.show({ type: 'error', text1: 'Time required ❌', text2: 'Please select an available time slot' });
       return;
     }
     setLoading(true);
@@ -160,18 +182,27 @@ export default function BookAppointmentScreen() {
       await axiosInstance.post('/leads/appointments', {
         leadId,
         appointmentDate: formatDate(selectedDate),
-        appointmentTime: formatTime(selectedTime),
+        appointmentTime: selectedSlot,
         description: description.trim(),
       });
       Toast.show({
         type: 'success',
         text1: '✅ Appointment Booked!',
-        text2: `${leadName} — ${displayDate(selectedDate)} at ${displayTime(selectedTime)}`,
+        text2: `${leadName} — ${displayDate(selectedDate)} at ${displaySlotTime(selectedSlot)}`,
         visibilityTime: 3000,
       });
       navigation.goBack();
     } catch (err: any) {
       const msg = err?.response?.data?.message || 'Could not book appointment';
+      if (err?.response?.status === 409) {
+        // Someone else just took this slot — refresh so the grid reflects reality.
+        if (selectedDate) {
+          fetchSlots(formatDate(selectedDate)).then((res) => {
+            if (res) setSlots(res.slots);
+          });
+        }
+        setSelectedSlot(null);
+      }
       Toast.show({ type: 'error', text1: 'Error ❌', text2: msg });
     } finally {
       setLoading(false);
@@ -185,7 +216,7 @@ export default function BookAppointmentScreen() {
         {/* ── Header ── */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={colors.text} />
+            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Book Appointment</Text>
           <View style={{ width: 36 }} />
@@ -250,52 +281,70 @@ export default function BookAppointmentScreen() {
             </IOSPickerModal>
           )}
 
-          {/* ── Time picker button ── */}
-          <PickerButton
-            icon="time"
-            label="Time *"
-            value={selectedTime ? displayTime(selectedTime) : ''}
-            placeholder="Select appointment time"
-            onPress={() => {
-              setTempTime(selectedTime ?? today);
-              setShowTimePicker(true);
-            }}
-          />
+          {/* ── Available time slots (from admin's schedule) ── */}
+          {selectedDate && (
+            <View style={{ gap: 8 }}>
+              <Text style={pickerStyles.label}>Time *</Text>
 
-          {/* Android inline time picker */}
-          {Platform.OS === 'android' && showTimePicker && (
-            <DateTimePicker
-              value={selectedTime ?? today}
-              mode="time"
-              is24Hour={false}
-              onChange={onTimeChange}
-            />
-          )}
-
-          {/* iOS time picker in modal */}
-          {Platform.OS === 'ios' && (
-            <IOSPickerModal
-              visible={showTimePicker}
-              title="Select Time"
-              onDone={() => { setSelectedTime(tempTime); setShowTimePicker(false); }}
-            >
-              <DateTimePicker
-                value={tempTime}
-                mode="time"
-                display="spinner"
-                is24Hour={false}
-                onChange={onTimeChange}
-                style={{ height: 200 }}
-              />
-            </IOSPickerModal>
+              {slotsLoading ? (
+                <View style={styles.slotLoadingBox}>
+                  <ActivityIndicator color={colors.primary} />
+                  <Text style={styles.slotLoadingText}>Checking availability...</Text>
+                </View>
+              ) : !isWorkingDay ? (
+                <View style={styles.slotEmptyBox}>
+                  <Ionicons name="moon-outline" size={20} color={colors.textLight} />
+                  <Text style={styles.slotEmptyText}>
+                    Not available on {selectedDate.toLocaleDateString('en-IN', { weekday: 'long' })}s. Pick another date.
+                  </Text>
+                </View>
+              ) : slots.length === 0 ? (
+                <View style={styles.slotEmptyBox}>
+                  <Ionicons name="alert-circle-outline" size={20} color={colors.textLight} />
+                  <Text style={styles.slotEmptyText}>No slots configured for this day.</Text>
+                </View>
+              ) : (
+                <View style={styles.slotGrid}>
+                  {slots.map((slot) => {
+                    const isSelected = selectedSlot === slot.time;
+                    return (
+                      <TouchableOpacity
+                        key={slot.time}
+                        disabled={!slot.available}
+                        style={[
+                          styles.slotPill,
+                          !slot.available && styles.slotPillDisabled,
+                          isSelected && styles.slotPillSelected,
+                        ]}
+                        onPress={() => setSelectedSlot(slot.time)}
+                      >
+                        <Text style={[
+                          styles.slotPillText,
+                          !slot.available && styles.slotPillTextDisabled,
+                          isSelected && styles.slotPillTextSelected,
+                        ]}>
+                          {displaySlotTime(slot.time)}
+                        </Text>
+                        {slot.reason === 'break' && (
+                          <Text style={styles.slotPillSubtext}>Break</Text>
+                        )}
+                        {slot.reason === 'booked' && (
+                          <Text style={styles.slotPillSubtext}>Booked</Text>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
           )}
 
           {/* ── Summary chip (shows after both selected) ── */}
-          {selectedDate && selectedTime && (
+          {selectedDate && selectedSlot && (
             <View style={styles.summaryChip}>
               <Ionicons name="checkmark-circle" size={18} color="#059669" />
               <Text style={styles.summaryText}>
-                {displayDate(selectedDate)}  •  {displayTime(selectedTime)}
+                {displayDate(selectedDate)}  •  {displaySlotTime(selectedSlot)}
               </Text>
             </View>
           )}
@@ -352,7 +401,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   backBtn: { width: 36, height: 36, justifyContent: 'center' },
-  headerTitle: { fontSize: typography.lg, fontWeight: '700' as any, color: colors.text },
+  headerTitle: { fontSize: typography.lg, fontWeight: '700' as any, color: colors.textPrimary },
 
   content: { padding: spacing.md, gap: 16, paddingBottom: 40 },
 
@@ -367,7 +416,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#05966920', justifyContent: 'center', alignItems: 'center',
   },
   avatarText: { fontSize: 20, fontWeight: '800' as any, color: '#059669' },
-  leadName: { fontSize: typography.md, fontWeight: '700' as any, color: colors.text },
+  leadName: { fontSize: typography.md, fontWeight: '700' as any, color: colors.textPrimary },
   leadPhone: { fontSize: typography.xs, color: colors.textSecondary, marginTop: 2 },
   bookedBadge: {
     backgroundColor: '#05966918', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
@@ -375,9 +424,40 @@ const styles = StyleSheet.create({
   bookedBadgeText: { fontSize: typography.xs, color: '#059669', fontWeight: '700' as any },
 
   sectionTitle: {
-    fontSize: typography.md, fontWeight: '700' as any, color: colors.text, marginTop: 4,
+    fontSize: typography.md, fontWeight: '700' as any, color: colors.textPrimary, marginTop: 4,
   },
 
+  slotLoadingBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.white, borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  slotLoadingText: { fontSize: typography.sm, color: colors.textSecondary },
+  slotEmptyBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#FFF8E1', borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: '#FCD34D',
+  },
+  slotEmptyText: { flex: 1, fontSize: typography.sm, color: '#92600A' },
+  slotGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 10,
+  },
+  slotPill: {
+    minWidth: '30%', alignItems: 'center',
+    backgroundColor: colors.white, borderRadius: 12,
+    borderWidth: 1.5, borderColor: colors.border,
+    paddingVertical: 10, paddingHorizontal: 8,
+  },
+  slotPillDisabled: {
+    backgroundColor: '#F3F4F6', borderColor: '#E5E7EB',
+  },
+  slotPillSelected: {
+    backgroundColor: '#05966915', borderColor: '#059669',
+  },
+  slotPillText: { fontSize: typography.sm, fontWeight: '600' as any, color: colors.textPrimary },
+  slotPillTextDisabled: { color: colors.textLight, textDecorationLine: 'line-through' },
+  slotPillTextSelected: { color: '#059669' },
+  slotPillSubtext: { fontSize: 10, color: colors.textLight, marginTop: 1 },
   summaryChip: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: '#05966912', borderRadius: 12, padding: 12,
@@ -388,14 +468,14 @@ const styles = StyleSheet.create({
   textArea: {
     backgroundColor: colors.white, borderRadius: 14,
     borderWidth: 1.5, borderColor: colors.border,
-    padding: 14, fontSize: typography.sm, color: colors.text, minHeight: 110,
+    padding: 14, fontSize: typography.sm, color: colors.textPrimary, minHeight: 110,
   },
 
   infoBox: {
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
     backgroundColor: colors.primary + '10', borderRadius: 12, padding: 12,
   },
-  infoText: { flex: 1, fontSize: typography.xs, color: colors.text, lineHeight: 18 },
+  infoText: { flex: 1, fontSize: typography.xs, color: colors.textPrimary, lineHeight: 18 },
 
   bookBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,

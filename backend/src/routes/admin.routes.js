@@ -26,5 +26,6 @@ router.patch('/leads/:id/assign', ctrl.assignLead);
 router.get('/appointments', ctrl.getAppointments);
 router.get('/appointments/:id', ctrl.getAppointmentById);
 router.patch('/appointments/:id', ctrl.updateAppointment);
+router.patch('/appointments/:id/status', ctrl.setAppointmentStatus);
 
 module.exports = router;

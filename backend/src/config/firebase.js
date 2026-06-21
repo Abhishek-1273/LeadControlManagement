@@ -3,9 +3,6 @@ const { getMessaging } = require('firebase-admin/messaging');
 
 let initialized = false;
 
-// Lazily initialise Firebase Admin using credentials from the environment.
-// NEVER commit the service account JSON to the repo — set FIREBASE_SERVICE_ACCOUNT
-// (the full JSON, on a single line) in your host's environment variables instead.
 function ensureApp() {
   if (initialized || getApps().length) {
     initialized = true;

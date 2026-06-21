@@ -70,6 +70,7 @@ export interface Appointment {
   appointmentDate: string;
   appointmentTime: string;
   description?: string;
+  status: 'scheduled' | 'completed' | 'missed';
   createdBy: { _id: string; name: string };
   createdAt: string;
 }

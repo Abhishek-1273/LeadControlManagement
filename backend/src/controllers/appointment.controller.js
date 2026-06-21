@@ -18,6 +18,15 @@ exports.createAppointment = async (req, res) => {
       return res.status(403).json({ message: 'You can only book appointments for your own leads' });
     }
 
+    // FIX: the slot picker on the client is only a UI hint — without a
+    // server-side check, two employees (or a stale client) could both
+    // submit the same date+time and double-book the same slot. Reject it
+    // here regardless of what the client believed was free.
+    const conflict = await Appointment.findOne({ appointmentDate, appointmentTime });
+    if (conflict) {
+      return res.status(409).json({ message: 'This time slot has just been booked. Please pick another.' });
+    }
+
     // Set lead status to Booked
     const oldStatus = lead.status;
     lead.status = 'Booked';

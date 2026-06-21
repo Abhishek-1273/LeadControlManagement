@@ -2,7 +2,7 @@ const User = require('../models/User.model');
 const Lead = require('../models/Lead.model');
 const Appointment = require('../models/Appointment.model');
 const bcrypt = require('bcryptjs');
-const { startOfDay, endOfDay, startOfDaysAgo, todayString, APP_TZ } = require('../utils/dateRange');
+const { startOfDay, endOfDay, startOfDaysAgo, todayString, startOfMonth, APP_TZ } = require('../utils/dateRange');
 
 // Escape user input before using it in a Mongo $regex to prevent ReDoS / injection.
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -12,27 +12,65 @@ exports.getAdminStats = async (req, res) => {
   try {
     const today = startOfDay();
     const todayEnd = endOfDay();
+    const monthStart = startOfMonth();
+    const todayKey = todayString();
+
+    // Hot/Warm/Cold/Booked share the same today window as "Today Leads" —
+    // combined across every employee (no assignedTo filter; admin sees the
+    // org-wide total). "Monthly Leads" and conversion rate are scoped to
+    // the current calendar month instead, per the dashboard redesign.
+    const todayFilter = { createdAt: { $gte: today, $lte: todayEnd } };
+    const monthFilter = { createdAt: { $gte: monthStart } };
 
     const [
-      totalLeads, todayLeads, hot,
-      warm, cold, followUp, booked, totalEmployees,
+      monthLeads, todayLeads, hot,
+      warm, cold, followUp, bookedToday, activeEmployees,
+      monthBooked, appointmentsToday, pendingLeads, allBooked,
     ] = await Promise.all([
-      Lead.countDocuments({}),
-      Lead.countDocuments({ createdAt: { $gte: today } }),
-      // Status breakdown is scoped to TODAY's leads only, so the dashboard
-      // always reflects today's snapshot instead of mixing in old/archived
-      // leads. (Hot+Warm+Cold+FollowUp+Booked here adds up to todayLeads.)
-      Lead.countDocuments({ status: 'Hot', createdAt: { $gte: today, $lte: todayEnd } }),
-      Lead.countDocuments({ status: 'Warm', createdAt: { $gte: today, $lte: todayEnd } }),
-      Lead.countDocuments({ status: 'Cold', createdAt: { $gte: today, $lte: todayEnd } }),
-      Lead.countDocuments({ status: 'Follow Up', createdAt: { $gte: today, $lte: todayEnd } }),
-      Lead.countDocuments({ status: 'Booked', createdAt: { $gte: today, $lte: todayEnd } }),
-      User.countDocuments({ role: 'employee' }),
+      // Monthly Leads — this calendar month's total leads (booked +
+      // unbooked), every employee combined. Replaces the old all-time
+      // "Total Leads" card.
+      Lead.countDocuments(monthFilter),
+      Lead.countDocuments(todayFilter),
+      Lead.countDocuments({ ...todayFilter, status: 'Hot' }),
+      Lead.countDocuments({ ...todayFilter, status: 'Warm' }),
+      Lead.countDocuments({ ...todayFilter, status: 'Cold' }),
+      Lead.countDocuments({ ...todayFilter, status: 'Follow Up' }),
+      Lead.countDocuments({ ...todayFilter, status: 'Booked' }),
+      // Active Employees — replaces the old total-employee-count card.
+      User.countDocuments({ role: 'employee', isActive: true }),
+      // Conversion rate uses booked-this-month / total-leads-this-month —
+      // monthLeads above already gives the denominator.
+      Lead.countDocuments({ ...monthFilter, status: 'Booked' }),
+      // Appointments scheduled for today (appointmentDate is a "YYYY-MM-DD"
+      // string in app-timezone, so a direct string match is correct here).
+      Appointment.countDocuments({ appointmentDate: todayKey }),
+      // Pending Leads — every employee's previous-day unbooked leads
+      // combined (no assignedTo filter), same definition as the employee
+      // side's "Previous Pending" (getEmployeePendingLeads), just org-wide.
+      Lead.countDocuments({
+        createdAt: { $lt: today },
+        status: { $in: ['Hot', 'Warm', 'Cold', 'Follow Up'] },
+      }),
+      // All Booked — every lead ever booked, any date, every employee
+      // combined. Lifetime counterpart to "Booked Today".
+      Lead.countDocuments({ status: 'Booked' }),
     ]);
 
+    const conversionRate = monthLeads > 0
+      ? Math.round((monthBooked / monthLeads) * 100)
+      : 0;
+
     res.json({
-      totalLeads, todayLeads, hot,
-      warm, cold, followUp, booked, totalEmployees,
+      monthLeads,
+      todayLeads,
+      hot, warm, cold, followUp,
+      booked: bookedToday,
+      allBooked,
+      activeEmployees,
+      conversionRate,
+      appointmentsToday,
+      pendingLeads,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -371,32 +409,50 @@ exports.getAllLeads = async (req, res) => {
     // Employee filter
     if (employee) filter.assignedTo = employee;
 
-    // Date range filter
+    // Date range filter.
+    // FIX: previously used `new Date(dateFrom)` + `setHours(0,0,0,0)`/
+    // `setHours(23,59,59,999)`, which compute midnight/end-of-day in the
+    // SERVER's local timezone. On Render (UTC), that's 5:30 hours off from
+    // the intended Asia/Kolkata day boundary, so a search for "today" or a
+    // specific date could silently include/exclude leads from the wrong
+    // side of midnight IST. Use the app's timezone-aware helpers instead.
     if (dateFrom || dateTo) {
       filter.createdAt = {};
-      if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
-      if (dateTo) {
-        const end = new Date(dateTo);
-        end.setHours(23, 59, 59, 999);
-        filter.createdAt.$lte = end;
-      }
+      if (dateFrom) filter.createdAt.$gte = startOfDay(new Date(`${dateFrom}T12:00:00Z`));
+      if (dateTo) filter.createdAt.$lte = endOfDay(new Date(`${dateTo}T12:00:00Z`));
     }
 
-    // Month + Year filter (overrides dateFrom/dateTo)
+    // Month + Year filter (overrides dateFrom/dateTo).
+    // FIX: same timezone issue — `new Date(year, month-1, 1)` resolves in
+    // the server's local time, not Asia/Kolkata. Anchor to noon UTC on the
+    // 1st (always lands on the correct calendar date regardless of server
+    // timezone) then convert to the IST day boundary.
     if (month && year) {
-      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-      const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999);
+      const mm = String(parseInt(month, 10)).padStart(2, '0');
+      const startDate = startOfDay(new Date(`${year}-${mm}-01T12:00:00Z`));
+      const nextMonth = parseInt(month, 10) === 12 ? 1 : parseInt(month, 10) + 1;
+      const nextYear = parseInt(month, 10) === 12 ? parseInt(year, 10) + 1 : parseInt(year, 10);
+      const nextMm = String(nextMonth).padStart(2, '0');
+      const endDate = new Date(
+        startOfDay(new Date(`${nextYear}-${nextMm}-01T12:00:00Z`)).getTime() - 1
+      );
       filter.createdAt = { $gte: startDate, $lte: endDate };
     } else if (year && !month) {
-      const startDate = new Date(parseInt(year), 0, 1);
-      const endDate = new Date(parseInt(year), 11, 31, 23, 59, 59, 999);
+      const startDate = startOfDay(new Date(`${year}-01-01T12:00:00Z`));
+      const endDate = new Date(
+        startOfDay(new Date(`${parseInt(year, 10) + 1}-01-01T12:00:00Z`)).getTime() - 1
+      );
       filter.createdAt = { $gte: startDate, $lte: endDate };
     }
 
-    // No implicit date restriction here: the Archive is meant to hold the
-    // complete lead history, oldest and newest alike. Date scoping only
-    // happens when the admin explicitly passes dateFrom/dateTo/month/year.
-    // (Newest-first sort below already brings recent leads to the top.)
+    // Default archive window: last 30 days, UNLESS the admin is explicitly
+    // searching/filtering. Older leads remain stored and reachable via search,
+    // status, employee, or an explicit date/month/year range.
+    const hasExplicitScope =
+      search || status || employee || dateFrom || dateTo || month || year;
+    if (!hasExplicitScope && !filter.createdAt) {
+      filter.createdAt = { $gte: startOfDaysAgo(30) };
+    }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [leads, total] = await Promise.all([
@@ -459,7 +515,15 @@ exports.getAppointments = async (req, res) => {
       .populate('createdBy', 'name')
       .sort({ appointmentDate: 1, appointmentTime: 1 });
 
-    res.json({ appointments, total: appointments.length });
+    // FIX: if a lead was deleted after its appointment was created, populate
+    // returns lead: null for that record. The app screen reads
+    // item.lead.name/.phone directly with no null guard, which crashes the
+    // whole list (TypeError: Cannot read property 'name' of null). Filter
+    // out orphaned appointments here so the API never returns a shape the
+    // client can't safely render.
+    const validAppointments = appointments.filter((a) => a.lead != null);
+
+    res.json({ appointments: validAppointments, total: validAppointments.length });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -502,6 +566,36 @@ exports.updateAppointment = async (req, res) => {
 
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
     res.json({ message: 'Appointment updated', appointment });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Set appointment status — 'scheduled' | 'completed' | 'missed'.
+// Kept separate from updateAppointment (which only handles reschedule
+// fields) so status changes have their own clear intent/endpoint, same
+// as completeFollowUp is separate from generic follow-up edits.
+// Does NOT touch the underlying Lead's status — appointment status and
+// lead status are intentionally independent in this codebase.
+const VALID_STATUSES = ['scheduled', 'completed', 'missed'];
+exports.setAppointmentStatus = async (req, res) => {
+  const { status } = req.body;
+  if (!VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ message: `Status must be one of: ${VALID_STATUSES.join(', ')}` });
+  }
+  try {
+    const appointment = await Appointment.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    ).populate({
+      path: 'lead',
+      select: 'name phone status assignedTo',
+      populate: { path: 'assignedTo', select: 'name' },
+    });
+
+    if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+    res.json({ message: 'Appointment status updated', appointment });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

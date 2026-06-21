@@ -15,7 +15,7 @@ const timelineSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const leadSchema = new mongoose.Schema({
-  name:           { type: String, required: true, trim: true },
+  name: { type: String, required: true, trim: true },
 
   // PRIMARY phone — must be exactly 10 digits, unique across the whole collection
   phone: {
@@ -27,12 +27,12 @@ const leadSchema = new mongoose.Schema({
   },
 
   secondaryPhone: { type: String, default: '', trim: true },
-  email:          { type: String, trim: true },
-  city:           { type: String, trim: true },
-  source:         { type: String, default: 'Unknown' },
-  campaign:       { type: String },
-  message:        { type: String },
-  car:            { type: String },
+  email: { type: String, trim: true },
+  city: { type: String, trim: true },
+  source: { type: String, default: 'Unknown' },
+  campaign: { type: String },
+  message: { type: String },
+  car: { type: String },
 
   status: {
     type: String,
@@ -41,9 +41,9 @@ const leadSchema = new mongoose.Schema({
   },
 
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  isPinned:   { type: Boolean, default: false },
-  notes:      [noteSchema],
-  timeline:   [timelineSchema],
+  isPinned: { type: Boolean, default: false },
+  notes: [noteSchema],
+  timeline: [timelineSchema],
 }, { timestamps: true });
 
 // Extra compound index: fast lookup by phone + secondaryPhone together

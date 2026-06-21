@@ -15,7 +15,7 @@ import { useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const StatCard = ({
-  icon, label, value, bgColor, iconColor, onPress,
+  icon, label, value, bgColor, iconColor, onPress, suffix,
 }: {
   icon: string;
   label: string;
@@ -23,6 +23,7 @@ const StatCard = ({
   bgColor: string;
   iconColor: string;
   onPress?: () => void;
+  suffix?: string;
 }) => (
   <TouchableOpacity
     style={[styles.statCard, { backgroundColor: bgColor }]}
@@ -30,7 +31,7 @@ const StatCard = ({
     activeOpacity={onPress ? 0.7 : 1}
   >
     <Ionicons name={icon as any} size={22} color={iconColor} />
-    <Text style={styles.statValue}>{value}</Text>
+    <Text style={styles.statValue}>{value}{suffix || ''}</Text>
     <Text style={styles.statLabel}>{label}</Text>
   </TouchableOpacity>
 );
@@ -70,15 +71,22 @@ export default function DashboardScreen() {
   };
 
   const goToTodayLeads = () => {
-    navigation.navigate('Leads', { screen: 'LeadList', params: { filter: 'today' } });
+    // "Today's Leads" is just the regular My Leads screen — the backend
+    // already scopes employees to today's leads by default, so no special
+    // param/route is needed here anymore.
+    navigation.navigate('Leads');
   };
 
   const goToPendingLeads = () => {
-    navigation.navigate('Leads', { screen: 'LeadList', params: { filter: 'pending' } });
+    navigation.navigate('PreviousPendingLeads');
   };
 
   const goToBookedLeads = () => {
-    navigation.navigate('Leads', { screen: 'LeadList', params: { filter: 'booked' } });
+    navigation.navigate('BookedLeads', { scope: 'today' });
+  };
+
+  const goToAllBookedLeads = () => {
+    navigation.navigate('BookedLeads', { scope: 'all' });
   };
 
   return (
@@ -146,7 +154,7 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Booked — all dates */}
+          {/* Booked Today */}
           <TouchableOpacity
             style={[styles.bookedCard]}
             onPress={goToBookedLeads}
@@ -155,11 +163,11 @@ export default function DashboardScreen() {
             <View style={styles.bookedLeft}>
               <Ionicons name="checkmark-circle" size={24} color="#059669" />
               <View style={{ marginLeft: spacing.sm }}>
-                <Text style={styles.bookedLabel}>Booked</Text>
-                <Text style={styles.bookedSub}>All your booked leads</Text>
+                <Text style={styles.bookedLabel}>Booked Today</Text>
+                <Text style={styles.bookedSub}>Visible until end of day</Text>
               </View>
             </View>
-            <Text style={styles.bookedValue}>{stats.booked}</Text>
+            <Text style={styles.bookedValue}>{stats.bookedToday}</Text>
           </TouchableOpacity>
         </View>
 
@@ -202,21 +210,39 @@ export default function DashboardScreen() {
               iconColor="#8B5CF6"
             />
             <StatCard
-              icon="checkmark-circle"
-              label="All Booked"
-              value={stats.booked}
+              icon="trending-up"
+              label="Conversion"
+              value={stats.conversionRate}
+              suffix="%"
               bgColor="#ECFDF5"
               iconColor="#059669"
             />
             <StatCard
-              icon="people"
-              label="Total"
-              value={stats.totalLeads}
+              icon="calendar-number"
+              label="Month's Performance"
+              value={stats.monthLeadsCount}
               bgColor="#F0F9FF"
               iconColor={colors.primary}
             />
           </View>
         </View>
+
+        {/* ── All-time Booked (separate from the today-scoped grid above) ── */}
+        <TouchableOpacity
+          style={styles.allBookedCard}
+          onPress={goToAllBookedLeads}
+          activeOpacity={0.85}
+        >
+          <View style={styles.allBookedIconWrap}>
+            <Ionicons name="trophy" size={26} color="#B45309" />
+          </View>
+          <View style={styles.allBookedTextWrap}>
+            <Text style={styles.allBookedValue}>{stats.booked}</Text>
+            <Text style={styles.allBookedLabel}>All Booked Leads</Text>
+            <Text style={styles.allBookedSub}>Every lead you've ever booked</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#B45309" />
+        </TouchableOpacity>
 
         {/* ── Today's Follow-ups ── */}
         <View style={styles.card}>
@@ -418,6 +444,38 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     borderWidth: 1,
     borderColor: '#F0F0F0',
+  },
+  allBookedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    marginHorizontal: spacing.base,
+    marginVertical: spacing.sm,
+    borderRadius: 16,
+    padding: spacing.base,
+    borderWidth: 1.5,
+    borderColor: '#FCD34D',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  allBookedIconWrap: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: '#FEF3C7',
+    justifyContent: 'center', alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  allBookedTextWrap: { flex: 1 },
+  allBookedValue: {
+    fontSize: 26, fontWeight: '800', color: '#B45309', lineHeight: 30,
+  },
+  allBookedLabel: {
+    fontSize: typography.base, fontWeight: typography.semiBold, color: '#92400E',
+  },
+  allBookedSub: {
+    fontSize: typography.xs, color: '#B45309', marginTop: 1,
   },
   sectionHeader: {
     flexDirection: 'row',
