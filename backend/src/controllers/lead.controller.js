@@ -442,54 +442,6 @@ exports.createLead = asyncHandler(async (req, res) => {
   res.status(201).json({ message: 'Lead created successfully', lead });
 });
 
-// POST /leads/webhook — n8n / external webhook
-exports.webhookLead = asyncHandler(async (req, res) => {
-  const { name, phone, email, city, source, campaign, message, car } = req.body;
-
-  if (!name || typeof name !== 'string' || !name.trim()) {
-    return res.status(400).json({ message: 'name is required' });
-  }
-  if (!phone || typeof phone !== 'string') {
-    return res.status(400).json({ message: 'A valid phone is required' });
-  }
-
-  const normalizedPhone = normalizePhone(phone);
-  if (!/^\d{10}$/.test(normalizedPhone)) {
-    return res.status(400).json({ message: 'Phone must be exactly 10 digits (no country code)' });
-  }
-
-  if (email?.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) {
-    return res.status(400).json({ message: 'Invalid email' });
-  }
-
-  const duplicate = await findPhoneDuplicate(normalizedPhone, '');
-  if (duplicate) {
-    return res.json({ success: true, skipped: true, reason: 'duplicate_phone', leadId: duplicate._id });
-  }
-
-  const clip = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
-
-  const employee = await User.findOne({ role: 'employee', isActive: true });
-
-  const lead = await Lead.create({
-    name: clip(name, 120),
-    phone: normalizedPhone,
-    email: clip(email, 120),
-    city: clip(city, 80),
-    source: clip(source, 40) || 'n8n',
-    campaign: clip(campaign, 120),
-    message: clip(message, 1000),
-    car: clip(car, 80),
-    status: 'Cold',
-    assignedTo: employee?._id || null,
-    timeline: [{
-      type: 'created',
-      description: `Lead received via webhook from ${clip(source, 40) || 'n8n'}`,
-    }],
-  });
-
-  res.json({ success: true, skipped: false, leadId: lead._id });
-});
 
 // POST /leads/:id/followup
 exports.addFollowUp = asyncHandler(async (req, res) => {

@@ -1,14 +1,9 @@
 const router      = require('express').Router();
 const auth        = require('../middleware/auth');
-const webhookAuth = require('../middleware/webhookAuth');
-const { webhookLimiter } = require('../middleware/rateLimiters');
 const validate    = require('../middleware/validate');
 const v           = require('../middleware/leadValidators');
 const ctrl        = require('../controllers/lead.controller');
 const appointmentCtrl = require('../controllers/appointment.controller');
-
-// ── Public webhook (n8n / external) ─────────────────────────────────────────
-router.post('/webhook', webhookLimiter, webhookAuth, ctrl.webhookLead);
 
 // ── All routes below require auth ────────────────────────────────────────────
 router.use(auth);
