@@ -19,7 +19,7 @@ connectDB();
 app.use(helmet());
 
 // --- CORS: allow only known origins ---
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:8081')
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
@@ -27,7 +27,6 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:8081')
 app.use(
   cors({
     origin(origin, callback) {
-      // Allow non-browser clients (mobile apps, curl, server-to-server) that send no Origin.
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
       return callback(new Error('Not allowed by CORS'));
