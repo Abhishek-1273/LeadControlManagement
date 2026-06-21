@@ -4,7 +4,7 @@ const { login, changePassword } = require('../controllers/auth.controller');
 const validate = require('../middleware/validate');
 const { loginRules } = require('../middleware/leadValidators');
 
-router.post('/login', loginLimiter, loginRules, validate, login);
+router.post('/login', loginRules, validate, login);
 const auth = require('../middleware/auth');
 
 // Change password (logged-in user)
