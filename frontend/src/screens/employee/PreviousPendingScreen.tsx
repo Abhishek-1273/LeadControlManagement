@@ -5,11 +5,9 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import Toast from 'react-native-toast-message';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
-import { Lead } from '../../types/lead.types';
 import { useLeadStore } from '../../store/leadStore';
 import { SimpleLeadCard, formatLeadDate } from '../../components/leads/SimpleLeadCard';
 
@@ -17,7 +15,7 @@ export default function PreviousPendingScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
 
-  const { pendingLeads, fetchEmployeePendingLeads, togglePin } = useLeadStore();
+  const { pendingLeads, fetchEmployeePendingLeads } = useLeadStore();
   const [refreshing, setRefreshing] = React.useState(false);
 
   useFocusEffect(
@@ -30,28 +28,6 @@ export default function PreviousPendingScreen() {
     setRefreshing(true);
     await fetchEmployeePendingLeads();
     setRefreshing(false);
-  };
-
-  // Pinned leads first, same convention as My Leads.
-  const sortedLeads = React.useMemo(() => {
-    const pinned = pendingLeads.filter((l) => l.isPinned);
-    const unpinned = pendingLeads.filter((l) => !l.isPinned);
-    return [...pinned, ...unpinned];
-  }, [pendingLeads]);
-
-  const handleTogglePin = async (lead: Lead) => {
-    const wasPinned = lead.isPinned;
-    try {
-      await togglePin(lead._id);
-      Toast.show({
-        type: 'success',
-        text1: wasPinned ? 'Unpinned' : 'Pinned 📌',
-        text2: wasPinned ? `${lead.name} removed from pinned` : `${lead.name} pinned`,
-        visibilityTime: 1500,
-      });
-    } catch {
-      Toast.show({ type: 'error', text1: 'Failed ❌', text2: 'Could not update pin' });
-    }
   };
 
   return (
@@ -75,16 +51,15 @@ export default function PreviousPendingScreen() {
           </Text>
         </View>
 
-        <Text style={styles.leadCount}>{sortedLeads.length} leads</Text>
+        <Text style={styles.leadCount}>{pendingLeads.length} leads</Text>
 
         <FlatList
-          data={sortedLeads}
+          data={pendingLeads}
           keyExtractor={(item) => item._id}
           renderItem={({ item }) => (
             <SimpleLeadCard
               lead={item}
-              onPress={() => navigation.navigate('LeadDetail', { leadId: item._id })}
-              onTogglePin={() => handleTogglePin(item)}
+              onPress={() => navigation.navigate('LeadDetail', { leadId: item._id, hidePin: true })}
               dateLabel={formatLeadDate(item.createdAt)}
             />
           )}

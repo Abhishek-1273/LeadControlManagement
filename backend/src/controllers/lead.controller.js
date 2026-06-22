@@ -65,18 +65,15 @@ exports.getMyLeads = asyncHandler(async (req, res) => {
 
   // Date range filter (used by admin for "today's leads", or any explicit
   // range request). Explicit dateFrom/dateTo always takes precedence.
+  // FIX: setHours() used the server's local timezone (UTC in production),
+  // not IST, so "today" leads created late at night IST fell outside the
+  // window and silently vanished from the admin Leads tab. Anchor to noon
+  // UTC (same convention as admin.controller.js) then use the IST-aware
+  // startOfDay/endOfDay helpers, so the calendar date never shifts.
   if (dateFrom || dateTo) {
     filter.createdAt = {};
-    if (dateFrom) {
-      const start = new Date(dateFrom);
-      start.setHours(0, 0, 0, 0);
-      filter.createdAt.$gte = start;
-    }
-    if (dateTo) {
-      const end = new Date(dateTo);
-      end.setHours(23, 59, 59, 999);
-      filter.createdAt.$lte = end;
-    }
+    if (dateFrom) filter.createdAt.$gte = startOfDay(new Date(`${dateFrom}T12:00:00Z`));
+    if (dateTo) filter.createdAt.$lte = endOfDay(new Date(`${dateTo}T12:00:00Z`));
   } else if (role === 'employee') {
     // FIX: this endpoint previously had NO date scoping for employees, so
     // "My Leads" (and every status chip — All/Hot/Warm/Cold/Follow Up,

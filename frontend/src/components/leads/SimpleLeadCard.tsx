@@ -31,19 +31,21 @@ export const SimpleLeadCard = React.memo(({
 }: {
   lead: Lead;
   onPress: () => void;
-  onTogglePin: () => void;
+  /** Omit to render this card without any pin badge/border (e.g. Pending Leads, which doesn't support pinning). */
+  onTogglePin?: () => void;
   /** When provided, shown next to the source chip (e.g. created/updated date). */
   dateLabel?: string;
 }) => {
   const statusColor = STATUS_COLORS[lead.status] || colors.primary;
+  const showPinned = !!onTogglePin && lead.isPinned;
 
   return (
     <TouchableOpacity
-      style={[styles.leadCard, lead.isPinned && styles.pinnedCard]}
+      style={[styles.leadCard, showPinned && styles.pinnedCard]}
       onPress={onPress}
       activeOpacity={0.7}
     >
-      {lead.isPinned && (
+      {showPinned && (
         <TouchableOpacity
           style={styles.pinnedIndicator}
           onPress={onTogglePin}

@@ -173,21 +173,10 @@ export default function AdminDashboardScreen() {
           <StatCard icon="today" label="Today Leads" value={stats.todayLeads}
             bgColor="#FEF9E7" iconColor="#F59E0B" />
           <StatCard icon="person-circle" label="Active Employees" value={stats.activeEmployees}
-            bgColor="#EEF2FF" iconColor="#6366F1"
-            onPress={() => navigation.navigate('AdminEmployees')} />
+            bgColor="#EEF2FF" iconColor="#6366F1" />
         </View>
 
-        {/* Stats Row 2 — today's status breakdown, all employees combined */}
-        <View style={styles.statsRow}>
-          <StatCard icon="flame" label="Hot Today" value={stats.hot}
-            bgColor="#FEF2F2" iconColor="#EF4444" />
-          <StatCard icon="sunny" label="Warm Today" value={stats.warm}
-            bgColor="#FFFBEB" iconColor="#F59E0B" />
-          <StatCard icon="snow" label="Cold Today" value={stats.cold}
-            bgColor="#EFF6FF" iconColor="#3B82F6" />
-        </View>
-
-        {/* Stats Row 3 — booking pair: today vs lifetime */}
+        {/* Stats Row 2 — booking pair: today vs lifetime */}
         <View style={styles.statsRow}>
           <StatCard icon="checkmark-circle" label="Booked Today" value={stats.booked}
             bgColor="#F0FFF4" iconColor="#059669" />
@@ -195,7 +184,7 @@ export default function AdminDashboardScreen() {
             bgColor="#FFFBEB" iconColor="#B45309" />
         </View>
 
-        {/* Stats Row 4 — performance pair: conversion vs what's still pending */}
+        {/* Stats Row 3 — performance pair: conversion vs what's still pending */}
         <View style={styles.statsRow}>
           <StatCard icon="trending-up" label="Conversion (Month)" value={stats.conversionRate}
             suffix="%" bgColor="#ECFDF5" iconColor="#059669" />
@@ -203,7 +192,7 @@ export default function AdminDashboardScreen() {
             bgColor="#FEF3C7" iconColor="#B45309" />
         </View>
 
-        {/* Stats Row 5 — appointments, alone, full width */}
+        {/* Stats Row 4 — appointments, alone, full width */}
         <View style={styles.statsRow}>
           <StatCard icon="calendar" label="Appointments Today" value={stats.appointmentsToday}
             bgColor="#F3E8FF" iconColor="#8B5CF6"

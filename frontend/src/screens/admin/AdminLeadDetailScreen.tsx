@@ -433,6 +433,7 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: colors.white, borderTopLeftRadius: 24,
     borderTopRightRadius: 24, padding: spacing.base, maxHeight: '70%',
+    paddingBottom: 50
   },
   modalTitle: {
     fontSize: typography.lg, fontWeight: typography.bold,

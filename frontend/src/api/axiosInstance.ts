@@ -1,10 +1,6 @@
 import axios from 'axios';
 import { storage } from '../utils/storage';
 
-// Env-driven. Set EXPO_PUBLIC_API_URL in your .env / app config.
-// Falls back to local dev only when no env var is provided — replace
-// 192.168.1.102 below with YOUR laptop's actual local IP (ipconfig / ifconfig)
-// if you don't want to set EXPO_PUBLIC_API_URL in .env.
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.104:5000/api';
 

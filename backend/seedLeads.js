@@ -11,6 +11,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const Lead = require('./src/models/Lead.model');   // adjust path if needed
 const User = require('./src/models/User.model');
+const { startOfDaysAgo } = require('./src/utils/dateRange');
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/leads';
 
@@ -22,13 +23,11 @@ const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 /** Pick a random element from an array */
 const pick = (arr) => arr[randInt(0, arr.length - 1)];
 
-/** Date string N days ago (midnight IST-ish) */
-function daysAgo(n) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
+// FIX: previously did `new Date(); setDate(...); setHours(0,0,0,0)`, which
+// computes midnight in the SERVER's local timezone, not IST — on a UTC
+// server that's 5:30 hours off, so "today's" leads could land on the wrong
+// side of midnight IST. Reuse the app's existing IST-aware helper instead.
+const daysAgo = (n) => startOfDaysAgo(n);
 
 // ─── data pools ─────────────────────────────────────────────────────────────
 
@@ -199,7 +198,7 @@ async function seed() {
   }
   console.log('📊  Status breakdown:', summary);
 
-  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const todayStart = startOfDaysAgo(0);
   const todayCount = leads.filter(l => l.createdAt >= todayStart).length;
   console.log(`📅  Today's leads: ${todayCount}`);
 

@@ -1,47 +1,19 @@
 {
   "expo": {
-    "name": "LeadManagementApp",
-    "slug": "LeadManagementApp",
-    "version": "1.0.0",
-    "orientation": "portrait",
+    "name": "WhatsFlow",
+    "slug": "leadmanagementapp",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+    "extra": {
+      "eas": {
+        "projectId": "a1bda941-6ea6-42c3-9845-080480336e04"
+      }
     },
-    "ios": {
-      "supportsTablet": true
-    },
+    "owner": "self_crafted01",
     "android": {
+      "package": "com.self_crafted01.leadmanagementapp",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      },
-      "predictiveBackGestureEnabled": false,
-      "package": "whatsflow.velta",
-      "googleServicesFile": "./google-services.json"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      "@react-native-community/datetimepicker",
-      "expo-secure-store",
-      "expo-font",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png",
-          "color": "#2cc18a"
-        }
-      ]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "4e02d53f-aeb4-492b-a424-c32938c13d85"
       }
     }
   }

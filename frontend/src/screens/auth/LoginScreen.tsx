@@ -24,7 +24,7 @@ export default function LoginScreen() {
       Toast.show({
         type: 'error',
         text1: 'Fields Required ❌',
-        text2: 'Email aur password dono fill karo',
+        text2: 'Add your email and password',
       });
       return;
     }
@@ -102,10 +102,6 @@ export default function LoginScreen() {
             }
           />
 
-          <TouchableOpacity style={styles.forgotContainer}>
-            <Text style={styles.forgotText}>Forgot Password?</Text>
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={[styles.loginButton,
             isLoading && styles.loginButtonDisabled]}
@@ -148,12 +144,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: typography.base, color: colors.textSecondary },
   form: { gap: spacing.md },
   input: { backgroundColor: colors.white },
-  forgotContainer: { alignSelf: 'flex-end' },
-  forgotText: {
-    color: colors.primary,
-    fontSize: typography.sm,
-    fontWeight: typography.medium,
-  },
+
   loginButton: {
     backgroundColor: colors.primary,
     padding: spacing.base,

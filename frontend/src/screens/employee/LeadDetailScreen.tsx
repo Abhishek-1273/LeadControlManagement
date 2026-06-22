@@ -81,7 +81,7 @@ const InfoRow = ({ icon, label, value }: {
 export default function LeadDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { leadId } = route.params || {};
+  const { leadId, hidePin } = route.params || {};
 
   const {
     selectedLead, fetchLeadById,
@@ -219,13 +219,19 @@ export default function LeadDetailScreen() {
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Lead Details</Text>
-        <TouchableOpacity style={styles.pinBtn} onPress={handlePin}>
-          <Ionicons
-            name={lead.isPinned ? 'bookmark' : 'bookmark-outline'}
-            size={22}
-            color={lead.isPinned ? colors.primary : colors.textSecondary}
-          />
-        </TouchableOpacity>
+        {hidePin ? (
+          // Pending Leads doesn't support pinning — keep an empty spacer
+          // the same size as the pin button so the title stays centered.
+          <View style={styles.pinBtn} />
+        ) : (
+          <TouchableOpacity style={styles.pinBtn} onPress={handlePin}>
+            <Ionicons
+              name={lead.isPinned ? 'bookmark' : 'bookmark-outline'}
+              size={22}
+              color={lead.isPinned ? colors.primary : colors.textSecondary}
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>

@@ -219,7 +219,7 @@ export default function DashboardScreen() {
             />
             <StatCard
               icon="calendar-number"
-              label="Month's Performance"
+              label="Monthly Leads"
               value={stats.monthLeadsCount}
               bgColor="#F0F9FF"
               iconColor={colors.primary}
