@@ -15,10 +15,6 @@ exports.getAdminStats = asyncHandler(async (req, res) => {
   const monthStart = startOfMonth();
   const todayKey = todayString();
 
-  // Hot/Warm/Cold/Booked share the same today window as "Today Leads" —
-  // combined across every employee (no assignedTo filter; admin sees the
-  // org-wide total). "Monthly Leads" and conversion rate are scoped to
-  // the current calendar month instead, per the dashboard redesign.
   const todayFilter = { createdAt: { $gte: today, $lte: todayEnd } };
   const monthFilter = { createdAt: { $gte: monthStart } };
 

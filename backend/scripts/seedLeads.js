@@ -1,23 +1,3 @@
-/**
- * seedTestLeads.js — small batch of test leads: mostly today, a few
- * recent days back. Uses the CURRENT status set (New/Interested/Contacted/
- * Not Interested/pending/Booked/Deleted) — unlike the older seedLeads.js,
- * which still has the retired Hot/Warm/Cold/Follow Up names.
- *
- * ADDITIVE — does NOT delete any existing leads. Safe to run on top of
- * real/test data. Re-run anytime you want a fresh batch; phone numbers are
- * randomized and checked against the DB for uniqueness.
- *
- * Usage:
- *   node seedTestLeads.js
- *
- * Optional: pass an employee email to assign all leads to that employee
- * specifically, e.g.:
- *   node seedTestLeads.js employee@example.com
- *
- * Env: MONGO_URI must be set (or edit the fallback below)
- */
-
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Lead = require('../src/models/Lead.model');

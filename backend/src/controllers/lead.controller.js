@@ -457,7 +457,7 @@ exports.createLead = asyncHandler(async (req, res) => {
     assignee = req.user._id;
   }
 
-  const lead = await Lead.create({
+const lead = await Lead.create({
     name: clip(name, 120),
     phone: primary,
     secondaryPhone: secondary,
@@ -470,8 +470,9 @@ exports.createLead = asyncHandler(async (req, res) => {
     assignedTo: assignee,
     timeline: [{
       type: 'created',
-      description: `Lead created manually by ${req.user.name}` +
-        (assignee ? '' : ' (unassigned)'),
+      description: (clip(source, 40) || 'Manual') === 'WhatsApp'
+        ? 'Lead received via WhatsApp'
+        : `Lead created manually by ${req.user.name}` + (assignee ? '' : ' (unassigned)'),
     }],
   });
 
