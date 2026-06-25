@@ -43,7 +43,7 @@ export default function SplashAnimation({ onFinish }: SplashAnimationProps) {
     <View style={styles.container}>
       <Animated.View style={animatedStyle}>
         <Image
-          source={require('../../../assets/icon.')}
+          source={require('../../../assets/icon.png')}
           style={{ width: LOGO_SIZE, height: LOGO_SIZE, borderRadius: LOGO_SIZE * 0.22 }}
           resizeMode="contain"
         />
