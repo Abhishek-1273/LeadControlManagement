@@ -5,6 +5,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSequence,
+  withDelay,
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
@@ -17,20 +18,30 @@ interface SplashAnimationProps {
 }
 
 export default function SplashAnimation({ onFinish }: SplashAnimationProps) {
-  const scale = useSharedValue(0.6);
+  const scale = useSharedValue(0.3);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
-    opacity.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.quad) });
+    // Phase 1: fade in + scale up smoothly (0.3 → 1.0)
+    opacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) });
 
-    // Scale up past 1 slightly (overshoot), then settle back —
-    // this small bounce is what makes it read as a "reveal" rather
-    // than a plain fade, same idea as the YouTube/Netflix logo intro.
     scale.value = withSequence(
-      withTiming(1.08, { duration: 500, easing: Easing.out(Easing.cubic) }),
-      withTiming(1, { duration: 200, easing: Easing.inOut(Easing.quad) }, () => {
-        runOnJS(onFinish)();
-      })
+      // Scale up: small → full size, smooth ease
+      withTiming(1.0, { duration: 600, easing: Easing.out(Easing.cubic) }),
+      // Hold for a moment
+      withDelay(
+        400,
+        // Phase 2: scale down + fade out together, then call onFinish
+        withTiming(0.15, { duration: 500, easing: Easing.in(Easing.cubic) }, () => {
+          runOnJS(onFinish)();
+        })
+      )
+    );
+
+    // Fade out synced with scale down
+    opacity.value = withSequence(
+      withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) }),
+      withDelay(400, withTiming(0, { duration: 500, easing: Easing.in(Easing.cubic) }))
     );
   }, []);
 
