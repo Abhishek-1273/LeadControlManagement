@@ -1,5 +1,4 @@
 import { StatusBar } from 'expo-status-bar';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PaperProvider } from 'react-native-paper';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -10,16 +9,6 @@ import * as Notifications from 'expo-notifications';
 import React from 'react';
 import AppNavigator from './src/navigation/AppNavigator';
 import { colors } from './src/theme/colors';
-
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 1000 * 60,
-    },
-  },
-});
 
 const toastConfig = {
   success: ({ text1, text2 }: any) => (
@@ -110,17 +99,15 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <PaperProvider>
-            <StatusBar style="auto" backgroundColor={colors.white} />
-            <AppNavigator navigationRef={navigationRef} />
-            <Toast
-              config={toastConfig}
-              position="bottom"
-              bottomOffset={80}
-            />
-          </PaperProvider>
-        </QueryClientProvider>
+        <PaperProvider>
+          <StatusBar style="auto" backgroundColor={colors.white} />
+          <AppNavigator navigationRef={navigationRef} />
+          <Toast
+            config={toastConfig}
+            position="bottom"
+            bottomOffset={80}
+          />
+        </PaperProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

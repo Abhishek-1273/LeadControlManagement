@@ -71,9 +71,6 @@ export default function DashboardScreen() {
   };
 
   const goToTodayLeads = () => {
-    // "Today's Leads" is just the regular My Leads screen — the backend
-    // already scopes employees to today's leads by default, so no special
-    // param/route is needed here anymore.
     navigation.navigate('Leads');
   };
 
@@ -181,37 +178,38 @@ export default function DashboardScreen() {
           <View style={styles.statsRow}>
             <StatCard
               icon="flame"
-              label="Hot"
-              value={stats.hot}
+              label="Interested"
+              value={stats.interested}
               bgColor="#FEF2F2"
               iconColor="#EF4444"
             />
             <StatCard
               icon="partly-sunny"
-              label="Warm"
-              value={stats.warm}
+              label="Contacted"
+              value={stats.contacted}
               bgColor="#FEF9E7"
               iconColor="#F59E0B"
             />
             <StatCard
               icon="snow"
-              label="Cold"
-              value={stats.cold}
+              label="Not Interested"
+              value={stats.notInterested}
               bgColor="#EFF6FF"
               iconColor="#3B82F6"
             />
           </View>
           <View style={[styles.statsRow, { marginTop: spacing.sm }]}>
             <StatCard
-              icon="calendar"
-              label="Follow Up"
-              value={stats.followUp}
-              bgColor="#F3E8FF"
-              iconColor="#8B5CF6"
+              icon="calendar-clear"
+              label="Follow Ups"
+              value={stats.todayFollowUps}
+              bgColor="#FEF3C7"
+              iconColor="#D97706"
+              onPress={() => {}}
             />
             <StatCard
               icon="trending-up"
-              label="Conversion"
+              label="Monthly Conversion"
               value={stats.conversionRate}
               suffix="%"
               bgColor="#ECFDF5"
@@ -219,7 +217,7 @@ export default function DashboardScreen() {
             />
             <StatCard
               icon="calendar-number"
-              label="Monthly Leads"
+              label="Monthly  Leads"
               value={stats.monthLeadsCount}
               bgColor="#F0F9FF"
               iconColor={colors.primary}
@@ -267,10 +265,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   key={index}
                   style={styles.followUpItem}
-                  onPress={() => navigation.navigate('Leads', {
-                    screen: 'LeadDetail',
-                    params: { leadId: fu.lead?._id }
-                  })}
+                  onPress={() => navigation.navigate('LeadDetail', { leadId: fu.lead?._id })}
                 >
                   <View style={styles.followUpLeft}>
                     <View style={styles.timeCircle}>
@@ -499,6 +494,14 @@ const styles = StyleSheet.create({
     fontSize: typography.xs,
     color: colors.white,
     fontWeight: typography.bold,
+  },
+  conversionNote: {
+    fontSize: typography.xs,
+    color: colors.textLight,
+    textAlign: 'right',
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+    paddingHorizontal: spacing.xs,
   },
   followUpList: { gap: spacing.sm },
   followUpItem: {

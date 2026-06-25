@@ -17,9 +17,9 @@ export interface CreateLeadPayload {
 interface DashboardStats {
   totalLeads: number;
   newToday: number;
-  hot: number;
-  warm: number;
-  cold: number;
+  interested: number;
+  contacted: number;
+  notInterested: number;
   followUp: number;
   booked: number;
   conversionRate: number;
@@ -37,6 +37,7 @@ interface LeadStore {
   todayLeads: Lead[];
   pendingLeads: Lead[];
   bookedLeads: Lead[];
+  archiveLeads: Lead[];
   selectedLead: Lead | null;
   followUps: any[];
   stats: DashboardStats;
@@ -56,6 +57,10 @@ interface LeadStore {
   togglePin: (id: string) => Promise<void>;
   updateLeadInfo: (id: string, data: any) => Promise<void>;
   clearSelectedLead: () => void;
+  softDeleteLead: (id: string) => Promise<void>;
+  restoreLead: (id: string) => Promise<void>;
+  fetchEmployeeArchive: (filters?: { status?: string; search?: string }) => Promise<void>;
+  fetchLeadAppointment: (id: string) => Promise<any>;
 }
 
 export const useLeadStore = create<LeadStore>((set, get) => ({
@@ -63,14 +68,15 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
   todayLeads: [],
   pendingLeads: [],
   bookedLeads: [],
+  archiveLeads: [],
   selectedLead: null,
   followUps: [],
   stats: {
     totalLeads: 0,
     newToday: 0,
-    hot: 0,
-    warm: 0,
-    cold: 0,
+    interested: 0,
+    contacted: 0,
+    notInterested: 0,
     followUp: 0,
     booked: 0,
     conversionRate: 0,
@@ -117,9 +123,9 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
         stats: {
           totalLeads: res.data.totalLeads ?? 0,
           newToday: res.data.newToday ?? res.data.todayLeadsCount ?? 0,
-          hot: res.data.hot ?? 0,
-          warm: res.data.warm ?? 0,
-          cold: res.data.cold ?? 0,
+          interested: res.data.interested ?? 0,
+          contacted: res.data.contacted ?? 0,
+          notInterested: res.data.notInterested ?? 0,
           followUp: res.data.followUp ?? 0,
           booked: res.data.booked ?? 0,
           conversionRate: res.data.conversionRate ?? 0,
@@ -238,4 +244,58 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
   },
 
   clearSelectedLead: () => set({ selectedLead: null }),
+
+  softDeleteLead: async (id) => {
+    try {
+      await axiosInstance.patch(`/leads/${id}/soft-delete`);
+      // Remove from active leads list
+      const leads = get().leads.filter((l) => l._id !== id);
+      set({ leads });
+      // Update selectedLead if it's the one being deleted
+      if (get().selectedLead?._id === id) {
+        set({ selectedLead: { ...get().selectedLead!, isDeleted: true } as any });
+      }
+    } catch (err: any) {
+      throw err;
+    }
+  },
+
+  restoreLead: async (id) => {
+    try {
+      const res = await axiosInstance.patch(`/leads/${id}/restore`);
+      // Update in archive list
+      const archiveLeads = get().archiveLeads.map((l) =>
+        l._id === id ? { ...l, isDeleted: false } : l
+      );
+      set({ archiveLeads });
+      if (get().selectedLead?._id === id) {
+        set({ selectedLead: res.data.lead });
+      }
+    } catch (err: any) {
+      throw err;
+    }
+  },
+
+  fetchEmployeeArchive: async (filters) => {
+    set({ isLoading: true });
+    try {
+      const params = new URLSearchParams();
+      if (filters?.status && filters.status !== 'all') params.append('status', filters.status);
+      if (filters?.search) params.append('search', filters.search);
+      const res = await axiosInstance.get(`/leads/employee-archive?${params.toString()}`);
+      set({ archiveLeads: res.data.leads || [], isLoading: false });
+    } catch (err: any) {
+      console.error('fetchEmployeeArchive error:', err.message);
+      set({ error: err.message, isLoading: false, archiveLeads: [] });
+    }
+  },
+
+  fetchLeadAppointment: async (id) => {
+    try {
+      const res = await axiosInstance.get(`/leads/${id}/appointment`);
+      return res.data.appointment;
+    } catch {
+      return null;
+    }
+  },
 }));

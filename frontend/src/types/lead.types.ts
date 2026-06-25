@@ -1,9 +1,11 @@
 export type LeadStatus =
-  | 'Hot'
-  | 'Warm'
-  | 'Cold'
-  | 'Follow Up'
+  | 'New'
+  | 'Interested'
+  | 'Contacted'
+  | 'Not Interested'
+  | 'Pending'
   | 'Booked'
+  | 'Deleted'
 
 export interface Lead {
   _id: string;
@@ -17,6 +19,9 @@ export interface Lead {
   car?: string;
   status: LeadStatus;
   assignedTo: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
+  statusBeforeDelete?: string;
   createdAt: string;
   updatedAt: string;
   isPinned: boolean;

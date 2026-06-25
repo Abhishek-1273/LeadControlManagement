@@ -4,6 +4,7 @@ export interface User {
   email: string;
   role: 'admin' | 'employee';
   isActive: boolean;
+  phone?: string;
 }
 export interface LoginRequest {
   email: string;
@@ -12,7 +13,6 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   token: string;
-  refreshToken: string;
   user: User;
 }
 

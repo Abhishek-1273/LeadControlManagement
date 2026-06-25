@@ -42,13 +42,11 @@ export async function registerPushToken(): Promise<string | null> {
   if (Platform.OS === 'android') {
     const nativeToken = await Notifications.getDevicePushTokenAsync();
     tokenData = nativeToken.data as string;
-    console.log('FCM Native token:', tokenData);
   } else {
     // iOS ke liye Expo token theek hai
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     const expoToken = await Notifications.getExpoPushTokenAsync({ projectId });
     tokenData = expoToken.data;
-    console.log('Expo push token:', tokenData);
   }
 
   return tokenData;

@@ -11,14 +11,16 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
-const STATUS_OPTIONS = ['All', 'Hot', 'Warm', 'Cold', 'Follow Up', 'Booked'];
+const STATUS_OPTIONS = ['All', 'New', 'Interested', 'Contacted', 'Not Interested', 'Pending', 'Booked', 'Deleted'];
 
 const STATUS_COLORS: Record<string, string> = {
-  Hot: '#EF4444',
-  Warm: '#F59E0B',
-  Cold: '#3B82F6',
-  'Follow Up': '#8B5CF6',
+  New: '#6B7280',
+  Interested: '#EF4444',
+  Contacted: '#F59E0B',
+  'Not Interested': '#3B82F6',
+  Pending: '#D97706',
   Booked: '#059669',
+  Deleted: '#9CA3AF',
 };
 
 // ─── Date label helper ────────────────────────────────────────────────────────

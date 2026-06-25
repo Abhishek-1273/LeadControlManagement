@@ -21,6 +21,9 @@ router.get('/employee-booked',      ctrl.getEmployeeBookedLeads);
 // Appointment — employee can book for their own lead
 router.post('/appointments', appointmentCtrl.createAppointment);
 
+// Employee archive (all leads ever assigned — including deleted)
+router.get('/employee-archive',     ctrl.getEmployeeArchive);
+
 // Lead CRUD
 router.get ('/',    v.listLeadsRules,   validate, ctrl.getMyLeads);
 router.post('/',    v.createLeadRules,  validate, ctrl.createLead);
@@ -32,6 +35,13 @@ router.patch ('/:id/note',     v.addNoteRules,       validate, ctrl.addNote);
 router.patch ('/:id/pin',      v.idRule,             validate, ctrl.togglePin);
 router.patch ('/:id/info',     v.updateInfoRules,    validate, ctrl.updateLeadInfo);
 router.post  ('/:id/followup', v.followUpRules,      validate, ctrl.addFollowUp);
+
+// Soft delete & restore
+router.patch ('/:id/soft-delete',  v.idRule, validate, ctrl.softDeleteLead);
+router.patch ('/:id/restore',      v.idRule, validate, ctrl.restoreLead);
+
+// Appointment for a lead
+router.get   ('/:id/appointment',  v.idRule, validate, ctrl.getLeadAppointment);
 
 
 module.exports = router;

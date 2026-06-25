@@ -6,8 +6,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "seed": "node scripts/seed.js",
-    "lead": "node scripts/leadseed.js"
+    "seed": "node scripts/seedLeads.js",
+    "check-duplicate-phones": "node scripts/checkDuplicatePhones.js",
+    "migrate:deleted-status": "node scripts/migrateDeletedStatus.js",
+    "migrate:pending-status": "node scripts/migratePendingStatus.js"
   },
   "keywords": [],
   "author": "",
@@ -23,7 +25,8 @@
     "firebase-admin": "^14.0.0",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^8.18.0"
+    "mongoose": "^8.18.0",
+    "node-cron": "^4.5.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

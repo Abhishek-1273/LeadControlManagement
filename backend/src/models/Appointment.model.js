@@ -27,4 +27,13 @@ const appointmentSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
+// Lead detail screen looks up the appointment for a given lead.
+appointmentSchema.index({ lead: 1 });
+
+// createAppointment checks for an existing appointment at the same
+// date+time to prevent double-booking; getAvailableSlots queries by
+// date alone to find all taken times that day. This compound index
+// covers both (date-only queries can use the prefix).
+appointmentSchema.index({ appointmentDate: 1, appointmentTime: 1 });
+
 module.exports = mongoose.model('Appointment', appointmentSchema);

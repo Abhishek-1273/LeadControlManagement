@@ -8,22 +8,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import { useLeadStore } from '../../store/leadStore';
-import { LeadStatus } from '../../types/lead.types';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
 const STATUS_COLORS: Record<string, string> = {
-  'Hot': '#EF4444',
-  'Warm': '#F59E0B',
-  'Cold': '#3B82F6',
-  'Follow Up': '#8B5CF6',
+  'New': '#6B7280',
+  'Interested': '#EF4444',
+  'Contacted': '#F59E0B',
+  'Not Interested': '#3B82F6',
+  'Pending': '#D97706',
   'Booked': '#059669',
+  'Deleted': '#9CA3AF',
 };
-
-const ALL_STATUSES: LeadStatus[] = [
-  'Hot', 'Warm', 'Cold', 'Follow Up', 'Booked',
-];
 
 const TIMELINE_ICONS: Record<string, string> = {
   created: 'add-circle',
@@ -50,9 +47,8 @@ export default function AdminLeadDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { leadId } = route.params || {};
-  const { selectedLead, fetchLeadById, updateStatus, isLoading } =
+  const { selectedLead, fetchLeadById, isLoading } =
     useLeadStore();
-  const [showStatusModal, setShowStatusModal] = useState(false);
   const [showTimelineModal, setShowTimelineModal] = useState(false);
 
   useEffect(() => {
@@ -72,20 +68,6 @@ export default function AdminLeadDetailScreen() {
   }
 
   const statusColor = STATUS_COLORS[lead.status] || colors.primary;
-
-  const handleStatusChange = async (status: LeadStatus) => {
-    setShowStatusModal(false);
-    try {
-      await updateStatus(leadId, status);
-      Toast.show({
-        type: 'success',
-        text1: 'Status Updated ✅',
-        text2: `Changed to ${status}`,
-      });
-    } catch {
-      Toast.show({ type: 'error', text1: 'Update Failed ❌' });
-    }
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -122,18 +104,16 @@ export default function AdminLeadDetailScreen() {
           {lead.secondaryPhone ? (
             <Text style={styles.leadPhone}>📱 {lead.secondaryPhone}</Text>
           ) : null}
-          <TouchableOpacity
+          <View
             style={[styles.statusBadge,
             { backgroundColor: statusColor + '20' }]}
-            onPress={() => setShowStatusModal(true)}
           >
             <View style={[styles.statusDot,
             { backgroundColor: statusColor }]} />
             <Text style={[styles.statusText, { color: statusColor }]}>
               {lead.status}
             </Text>
-            <Ionicons name="chevron-down" size={14} color={statusColor} />
-          </TouchableOpacity>
+          </View>
 
           {/* Assigned To */}
           <View style={styles.assignedBadge}>
@@ -153,7 +133,7 @@ export default function AdminLeadDetailScreen() {
             style={styles.actionBtn}
             onPress={() => Linking.openURL(`tel:${lead.phone}`)}
           >
-            <View style={[styles.actionIcon, { backgroundColor: '#E8F5E9' }]}>
+            <View style={[styles.actionIcon, { backgroundColor: '#e3f5f8' }]}>
               <Ionicons name="call" size={22} color={colors.primary} />
             </View>
             <Text style={styles.actionLabel}>Call</Text>
@@ -236,47 +216,6 @@ export default function AdminLeadDetailScreen() {
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
-
-      {/* Status Modal */}
-      {showStatusModal && (
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          onPress={() => setShowStatusModal(false)}
-          activeOpacity={1}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Change Status</Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {ALL_STATUSES.map((status) => {
-                const sColor = STATUS_COLORS[status];
-                const isActive = lead.status === status;
-                return (
-                  <TouchableOpacity
-                    key={status}
-                    style={[styles.statusOption,
-                    isActive && styles.statusOptionActive]}
-                    onPress={() => handleStatusChange(status)}
-                  >
-                    <View style={[styles.statusDot,
-                    { backgroundColor: sColor }]} />
-                    <Text style={[styles.statusOptionText,
-                    isActive && {
-                      color: colors.primary,
-                      fontWeight: typography.bold
-                    }]}>
-                      {status}
-                    </Text>
-                    {isActive && (
-                      <Ionicons name="checkmark" size={18}
-                        color={colors.primary} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      )}
 
       {/* Timeline Modal */}
       {showTimelineModal && (
@@ -439,15 +378,6 @@ const styles = StyleSheet.create({
     fontSize: typography.lg, fontWeight: typography.bold,
     color: colors.textPrimary, marginBottom: spacing.md,
     textAlign: 'center',
-  },
-  statusOption: {
-    flexDirection: 'row', alignItems: 'center',
-    gap: spacing.md, paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm, borderRadius: 10, marginBottom: 4,
-  },
-  statusOptionActive: { backgroundColor: colors.primaryLight },
-  statusOptionText: {
-    flex: 1, fontSize: typography.base, color: colors.textPrimary,
   },
   timelineRow: {
     flexDirection: 'row', gap: spacing.md,

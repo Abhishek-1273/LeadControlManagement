@@ -14,14 +14,13 @@ export const colors = {
   textSecondary: '#6B7280',  // Subtitle text
   textLight: '#9CA3AF',      // Placeholder
 
-  // they just now point to the current 5-status palette)
-  statusHot: '#EF4444',         // Red
-  statusWarm: '#F59E0B',        // Amber
-  statusCold: '#3B82F6',        // Blue
-  statusFollowUp: '#8B5CF6',    // Purple
-  statusBooked: '#059669',      // Dark Green
-  statusNew: '#3B82F6',          // → Cold (blue)
-
+  // Status colors
+  statusNew: '#6B7280',             // Gray - New leads
+  statusInterested: '#EF4444',      // Red - Interested
+  statusContacted: '#F59E0B',       // Amber - Contacted
+  statusNotInterested: '#3B82F6',   // Blue - Not Interested
+  statusBooked: '#059669',          // Dark Green - Booked
+  pending: '#D97706',               // Orange - Pending
   // Border
   border: '#E5E7EB',
   borderLight: '#F3F4F6',

@@ -23,7 +23,7 @@ const leadSchema = new mongoose.Schema({
     required: true,
     trim: true,
     match: [/^\d{10}$/, 'Phone must be exactly 10 digits'],
-    unique: true,   // ← database-level uniqueness guarantee
+    unique: true,
   },
 
   secondaryPhone: { type: String, default: '', trim: true },
@@ -36,9 +36,15 @@ const leadSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ['Hot', 'Warm', 'Cold', 'Follow Up', 'Booked'],
-    default: 'Cold',
+    enum: ['New', 'Interested', 'Contacted', 'Not Interested', 'Pending', 'Booked', 'Deleted'],
+    default: 'New',
   },
+
+  // Soft-delete fields
+  isDeleted: { type: Boolean, default: false },
+  deletedAt: { type: Date, default: null },
+  deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  statusBeforeDelete: { type: String, default: null },
 
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   isPinned: { type: Boolean, default: false },
@@ -46,12 +52,45 @@ const leadSchema = new mongoose.Schema({
   timeline: [timelineSchema],
 }, { timestamps: true });
 
-// Extra compound index: fast lookup by phone + secondaryPhone together
+// Indexes
 leadSchema.index({ secondaryPhone: 1 }, { sparse: true });
-
 leadSchema.index({ assignedTo: 1, createdAt: -1 });
 leadSchema.index({ assignedTo: 1, status: 1 });
 leadSchema.index({ status: 1, updatedAt: -1 });
 leadSchema.index({ createdAt: -1 });
+
+// ─── Auto-assign hook ────────────────────────────────────────────────────────
+// Runs AFTER a brand-new lead is saved (isNew = true).
+// If assignedTo is already set (admin manually assigned), skip.
+leadSchema.post('save', async function (doc) {
+  if (!doc.wasNew) return;           // only on first insert
+  if (doc.assignedTo) return;        // already manually assigned
+
+  try {
+    const { getNextEmployee } = require('../utils/autoAssign');
+    const employeeId = await getNextEmployee();
+    if (!employeeId) return;         // no active employees — leave unassigned
+
+    await doc.constructor.findByIdAndUpdate(doc._id, {
+      assignedTo: employeeId,
+      $push: {
+        timeline: {
+          type: 'assigned',
+          description: 'Auto-assigned via round-robin',
+        },
+      },
+    });
+  } catch (err) {
+    // Never crash the main flow because of assignment failure
+    console.error('[AutoAssign] Error:', err.message);
+  }
+});
+
+// We need to know if this was a new document inside post('save'),
+// but `this.isNew` is already false by then. So we store it in pre('save').
+leadSchema.pre('save', function (next) {
+  this.wasNew = this.isNew;
+  next();
+});
 
 module.exports = mongoose.model('Lead', leadSchema);

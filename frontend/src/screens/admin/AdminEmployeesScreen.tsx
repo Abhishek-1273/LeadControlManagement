@@ -73,7 +73,6 @@ export default function AdminEmployeesScreen() {
     );
   };
 
-  // Filter + Search
   const filtered = employees.filter((emp) => {
     const matchSearch =
       emp.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -88,15 +87,13 @@ export default function AdminEmployeesScreen() {
   const renderEmployee = ({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.empCard}
-      onPress={() => navigation.navigate('EmployeeDetail',
-        { employeeId: item._id })}
+      onPress={() => navigation.navigate('EmployeeDetail', { employeeId: item._id })}
       activeOpacity={0.7}
     >
       {/* Left */}
       <View style={styles.empLeft}>
-        <View style={[styles.avatar,
-        !item.isActive && styles.avatarInactive]}>
-          <Text style={styles.avatarText}>
+        <View style={[styles.avatar, !item.isActive && styles.avatarInactive]}>
+          <Text style={[styles.avatarText, !item.isActive && styles.avatarTextInactive]}>
             {item.name.charAt(0).toUpperCase()}
           </Text>
         </View>
@@ -108,64 +105,51 @@ export default function AdminEmployeesScreen() {
           {item.phone && (
             <Text style={styles.empPhone}>{item.phone}</Text>
           )}
-
-          {/* Stats Row */}
           <View style={styles.empStatsRow}>
             <View style={styles.empStat}>
-              <Ionicons name="people-outline" size={12}
-                color={colors.textSecondary} />
-              <Text style={styles.empStatText}>
-                {item.totalLeads || 0} leads
-              </Text>
+              <Ionicons name="people-outline" size={12} color={colors.textSecondary} />
+              <Text style={styles.empStatText}>{item.totalLeads || 0} leads</Text>
             </View>
             <View style={styles.empStat}>
-              <Ionicons name="today-outline" size={12}
-                color={colors.textSecondary} />
-              <Text style={styles.empStatText}>
-                {item.todayLeads || 0} today
-              </Text>
+              <Ionicons name="today-outline" size={12} color={colors.textSecondary} />
+              <Text style={styles.empStatText}>{item.todayLeads || 0} today</Text>
             </View>
           </View>
         </View>
       </View>
 
       {/* Right Actions */}
-{/* Right Actions */}
-<View style={styles.empActions}>
-  {/* Row 1: Status badge + Edit btn */}
-  <View style={styles.empActionsTop}>
-    <View style={[styles.statusBadge,
-      { backgroundColor: item.isActive ? '#c4f9da' : '#FFF0F0' }]}>
-      <View style={[styles.statusDot,
-        { backgroundColor: item.isActive ? colors.success : colors.error }]} />
-      <Text style={[styles.statusText,
-        { color: item.isActive ? colors.success : colors.error }]}>
-        {item.isActive ? 'Active' : 'Inactive'}
-      </Text>
-    </View>
-    <TouchableOpacity
-      style={styles.editBtn}
-      onPress={() => navigation.navigate('AddEmployee',
-        { employee: item, isEdit: true })}
-    >
-      <Ionicons name="create-outline" size={18} color={colors.primary} />
-    </TouchableOpacity>
-  </View>
-
-  {/* Row 2: Toggle Switch centered */}
-  <View style={styles.empActionsBottom}>
-    <TouchableOpacity
-      style={[styles.toggleSwitch,
-        { backgroundColor: item.isActive ? colors.primary : colors.borderLight }]}
-      onPress={() => handleToggle(item)}
-      activeOpacity={0.8}
-    >
-      <View style={[styles.toggleThumb,
-        { transform: [{ translateX: item.isActive ? 18 : 2 }] }]}
-      />
-    </TouchableOpacity>
-  </View>
-</View>
+      <View style={styles.empActions}>
+        <View style={styles.empActionsTop}>
+          <View style={[styles.statusBadge,
+            { backgroundColor: item.isActive ? '#c4f9da' : '#FFF0F0' }]}>
+            <View style={[styles.statusDot,
+              { backgroundColor: item.isActive ? colors.success : colors.error }]} />
+            <Text style={[styles.statusText,
+              { color: item.isActive ? colors.success : colors.error }]}>
+              {item.isActive ? 'Active' : 'Inactive'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => navigation.navigate('AddEmployee', { employee: item, isEdit: true })}
+          >
+            <Ionicons name="create-outline" size={18} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.empActionsBottom}>
+          <TouchableOpacity
+            style={[styles.toggleSwitch,
+              { backgroundColor: item.isActive ? colors.primary : colors.borderLight }]}
+            onPress={() => handleToggle(item)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.toggleThumb,
+              { transform: [{ translateX: item.isActive ? 18 : 2 }] }]}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 
@@ -178,8 +162,7 @@ export default function AdminEmployeesScreen() {
           <Text style={styles.title}>Employees</Text>
           <TouchableOpacity
             style={styles.addBtn}
-            onPress={() => navigation.navigate('AddEmployee',
-              { isEdit: false })}
+            onPress={() => navigation.navigate('AddEmployee', { isEdit: false })}
           >
             <Ionicons name="person-add" size={18} color={colors.white} />
             <Text style={styles.addBtnText}>Add</Text>
@@ -198,8 +181,7 @@ export default function AdminEmployeesScreen() {
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18}
-                color={colors.textSecondary} />
+              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -209,12 +191,10 @@ export default function AdminEmployeesScreen() {
           {(['all', 'active', 'inactive'] as const).map((f) => (
             <TouchableOpacity
               key={f}
-              style={[styles.filterTab,
-              filter === f && styles.filterTabActive]}
+              style={[styles.filterTab, filter === f && styles.filterTabActive]}
               onPress={() => setFilter(f)}
             >
-              <Text style={[styles.filterTabText,
-              filter === f && styles.filterTabTextActive]}>
+              <Text style={[styles.filterTabText, filter === f && styles.filterTabTextActive]}>
                 {f === 'all' ? `All (${employees.length})`
                   : f === 'active'
                     ? `Active (${employees.filter(e => e.isActive).length})`
@@ -239,8 +219,7 @@ export default function AdminEmployeesScreen() {
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={64}
-                color={colors.textLight} />
+              <Ionicons name="people-outline" size={64} color={colors.textLight} />
               <Text style={styles.emptyText}>
                 {isLoading ? 'Loading...' : 'No employees found'}
               </Text>
@@ -316,23 +295,24 @@ const styles = StyleSheet.create({
   },
   empLeft: {
     flexDirection: 'row', alignItems: 'center',
-    gap: spacing.md, flex: 1
+    gap: spacing.md, flex: 1,
   },
   avatar: {
     width: 46, height: 46, borderRadius: 23,
     backgroundColor: colors.primaryLight,
     justifyContent: 'center', alignItems: 'center',
   },
-  avatarInactive: { backgroundColor: colors.error },
+  avatarInactive: { backgroundColor: '#D1D5DB' },
   avatarText: {
     fontSize: typography.lg, fontWeight: typography.bold,
     color: colors.primary,
   },
+  avatarTextInactive: { color: '#6B7280' },
   empInfo: { flex: 1 },
   empNameRow: {
     flexDirection: 'row', alignItems: 'center',
     gap: spacing.sm, marginBottom: 2,
-    flexWrap: 'nowrap'
+    flexWrap: 'nowrap',
   },
   empName: {
     fontSize: typography.base, fontWeight: typography.semiBold,
@@ -342,7 +322,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     gap: 4, paddingHorizontal: spacing.sm,
     paddingVertical: 4, borderRadius: 10,
-    marginHorizontal: 5
+    marginHorizontal: 5,
   },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 10, fontWeight: typography.semiBold },
@@ -353,20 +333,20 @@ const styles = StyleSheet.create({
   },
   empStat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   empStatText: { fontSize: typography.xs, color: colors.textSecondary },
-empActions: {
-  flexDirection: 'column',
-  alignItems: 'flex-end',
-  gap: spacing.xs
-},
-empActionsTop: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: spacing.xs,
-},
-empActionsBottom: {
-  alignItems: 'flex-end',
-  width: '100%',
-},
+  empActions: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+  },
+  empActionsTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  empActionsBottom: {
+    alignItems: 'flex-end',
+    width: '100%',
+  },
   editBtn: {
     backgroundColor: colors.primaryLight,
     padding: spacing.sm, borderRadius: 8,

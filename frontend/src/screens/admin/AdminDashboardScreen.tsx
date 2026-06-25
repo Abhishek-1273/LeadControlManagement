@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { BarChart, LineChart } from 'react-native-chart-kit';
+import { BarChart, LineChart } from 'react-native-gifted-charts';
 import { useAuthStore } from '../../store/authStore';
 import { useAdminStore } from '../../store/adminStore';
 import { useWindowDimensions } from 'react-native';
@@ -50,28 +50,18 @@ const StatCard = ({
   </TouchableOpacity>
 );
 
-const chartConfig = {
-  backgroundGradientFrom: colors.white,
-  backgroundGradientTo: colors.white,
-  color: (opacity = 1) => `rgba(0, 168, 107, ${opacity})`,
-  strokeWidth: 2,
-  barPercentage: 0.6,
-  labelColor: () => colors.textSecondary,
-  style: { borderRadius: 16 },
-  propsForDots: {
-    r: '4',
-    strokeWidth: '2',
-    stroke: colors.primary,
-  },
-};
-
 export default function AdminDashboardScreen() {
   const navigation = useNavigation<any>();
   const { user, logout } = useAuthStore();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { stats, employees, performanceData, monthlyTrend, fetchAdminStats, fetchEmployees, fetchPerformanceDashboard, fetchMonthlyTrend } = useAdminStore();
+  const {
+    stats, performanceData, monthlyTrend,
+    fetchAdminStats, fetchEmployees, fetchPerformanceDashboard, fetchMonthlyTrend,
+  } = useAdminStore();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [selectedBar, setSelectedBar] = React.useState<{ label: string; value: number } | null>(null);
+  const [selectedPoint, setSelectedPoint] = React.useState<{ label: string; value: number } | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -88,37 +78,48 @@ export default function AdminDashboardScreen() {
     setRefreshing(false);
   };
 
-  const statusChartData = {
-    labels: ['Hot', 'Warm', 'Cold', 'Follow Up', 'Booked'],
-    datasets: [{
-      data: [
-        stats.hot || 0,
-        stats.warm || 0,
-        stats.cold || 0,
-        stats.followUp || 0,
-        stats.booked || 0,
-      ]
-    }]
-  };
+  // ── Bar chart data ───────────────────────────────────────────────────────────
+  // NOTE: stats has no "pending" field for the status breakdown. The backend
+  // tracks `pendingLeads` as a today-count only. We only chart the 4 statuses
+  // that are actually returned by /admin/stats.
+  const statusBarData = [
+    { value: stats.interested || 0, label: 'Interest.', frontColor: colors.statusInterested, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
+    { value: stats.contacted || 0, label: 'Contacted', frontColor: colors.statusContacted, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
+    { value: stats.notInterested || 0, label: 'Not Int.', frontColor: colors.statusNotInterested, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
+    { value: stats.booked || 0, label: 'Booked', frontColor: colors.statusBooked, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
+  ];
+  const hasBarData = statusBarData.some((d) => d.value > 0);
+  const barMax = Math.max(...statusBarData.map((d) => d.value), 1);
 
-  // Real last-6-months data from the backend (auto-rolls forward each month).
+  // ── Line chart data ──────────────────────────────────────────────────────────
   const hasTrendData = monthlyTrend.length > 0;
-  const monthlyChartData = {
-    labels: hasTrendData ? monthlyTrend.map((p) => p.label) : ['—'],
-    datasets: [{
-      data: hasTrendData ? monthlyTrend.map((p) => p.count) : [0],
-      color: (opacity = 1) => `rgba(0, 168, 107, ${opacity})`,
-      strokeWidth: 2,
-    }]
-  };
+  const lineData = hasTrendData
+    ? monthlyTrend.map((p) => ({
+      value: p.count,
+      label: p.label,
+      labelTextStyle: { color: colors.textSecondary, fontSize: 9 },
+      dataPointText: String(p.count),
+    }))
+    : [{ value: 0, label: '—', labelTextStyle: { color: colors.textSecondary, fontSize: 9 }, dataPointText: '0' }];
+  const lineMax = Math.max(...lineData.map((d) => d.value), 1);
 
-  // Rank by Booked Today, then by total booked
+  // Bar spacing — distribute evenly across CHART_WIDTH
+  const BAR_WIDTH = 38;
+  const barSpacing = Math.max(
+    (CHART_WIDTH - BAR_WIDTH * statusBarData.length - 32) / statusBarData.length,
+    12,
+  );
+
+  // Line point spacing — even distribution
+  const lineSpacing = Math.max(
+    (CHART_WIDTH - 40) / Math.max(lineData.length - 1, 1),
+    40,
+  );
+
   const topPerformers = [...performanceData]
     .sort((a, b) => b.bookedToday - a.bookedToday || b.totalBooked - a.totalBooked)
     .slice(0, 5);
 
-  // "1–21 Jun" style label for the Monthly Leads card — 1st of the current
-  // month through today, in the device's local calendar.
   const monthRangeLabel = React.useMemo(() => {
     const now = new Date();
     const monthShort = now.toLocaleDateString('en-IN', { month: 'short' });
@@ -131,27 +132,18 @@ export default function AdminDashboardScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
         }
       >
         {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Admin Panel</Text>
-            <Text style={styles.subGreeting}>
-              Welcome back, {user?.name?.split(' ')[0]}
-            </Text>
+            <Text style={styles.subGreeting}>Welcome back, {user?.name?.split(' ')[0]}</Text>
           </View>
-          <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-            <Ionicons name="log-out-outline" size={22} color={colors.textSecondary} />
-          </TouchableOpacity>
         </View>
 
-        {/* ── Monthly Leads — standalone achievement card ── */}
+        {/* Monthly Leads card */}
         <TouchableOpacity
           style={styles.monthlyLeadsCard}
           onPress={() => navigation.navigate('MonthlyLeads')}
@@ -168,31 +160,19 @@ export default function AdminDashboardScreen() {
           <Ionicons name="chevron-forward" size={20} color={colors.primaryDark} />
         </TouchableOpacity>
 
-        {/* Stats Row 1 */}
+        {/* Stats rows */}
         <View style={styles.statsRow}>
-          <StatCard icon="today" label="Today Leads" value={stats.todayLeads}
-            bgColor="#FEF9E7" iconColor="#F59E0B" />
-          <StatCard icon="person-circle" label="Active Employees" value={stats.activeEmployees}
-            bgColor="#EEF2FF" iconColor="#6366F1" />
+          <StatCard icon="today" label="Today Leads" value={stats.todayLeads} bgColor="#FEF9E7" iconColor="#F59E0B" />
+          <StatCard icon="person-circle" label="Active Employees" value={stats.activeEmployees} bgColor="#EEF2FF" iconColor="#6366F1" />
         </View>
-
-        {/* Stats Row 2 — booking pair: today vs lifetime */}
         <View style={styles.statsRow}>
-          <StatCard icon="checkmark-circle" label="Booked Today" value={stats.booked}
-            bgColor="#F0FFF4" iconColor="#059669" />
-          <StatCard icon="trophy" label="All Booked" value={stats.allBooked}
-            bgColor="#FFFBEB" iconColor="#B45309" />
+          <StatCard icon="checkmark-circle" label="Booked Today" value={stats.booked} bgColor="#F0FFF4" iconColor="#059669" />
+          <StatCard icon="trophy" label="All Booked" value={stats.allBooked} bgColor="#FFFBEB" iconColor="#B45309" />
         </View>
-
-        {/* Stats Row 3 — performance pair: conversion vs what's still pending */}
         <View style={styles.statsRow}>
-          <StatCard icon="trending-up" label="Conversion (Month)" value={stats.conversionRate}
-            suffix="%" bgColor="#ECFDF5" iconColor="#059669" />
-          <StatCard icon="hourglass" label="Pending Leads" value={stats.pendingLeads}
-            bgColor="#FEF3C7" iconColor="#B45309" />
+          <StatCard icon="trending-up" label="Conversion (Month)" value={stats.conversionRate} suffix="%" bgColor="#ECFDF5" iconColor="#059669" />
+          <StatCard icon="hourglass" label="Total Pending Leads" value={stats.pendingLeads} bgColor="#FEF3C7" iconColor="#B45309" />
         </View>
-
-        {/* Stats Row 4 — appointments, alone, full width */}
         <View style={styles.statsRow}>
           <StatCard icon="calendar" label="Appointments Today" value={stats.appointmentsToday}
             bgColor="#F3E8FF" iconColor="#8B5CF6"
@@ -200,24 +180,52 @@ export default function AdminDashboardScreen() {
             fullWidth />
         </View>
 
-        {/* Bar Chart */}
+        {/* ── Bar Chart: Leads by Status ── */}
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
             <Ionicons name="bar-chart" size={18} color={colors.primary} />
             <Text style={styles.cardTitle}>Leads by Status</Text>
           </View>
-          {(stats.hot + stats.warm + stats.cold + stats.followUp + stats.booked) > 0 ? (
-            <BarChart
-              data={statusChartData}
-              width={CHART_WIDTH}
-              height={200}
-              chartConfig={chartConfig}
-              style={styles.chart}
-              showValuesOnTopOfBars
-              fromZero
-              yAxisLabel=""
-              yAxisSuffix=""
-            />
+
+          {hasBarData ? (
+            <>
+              {selectedBar ? (
+                <View style={styles.tooltipBox}>
+                  <Text style={styles.tooltipLabel}>{selectedBar.label}</Text>
+                  <Text style={styles.tooltipValue}>{selectedBar.value} leads</Text>
+                </View>
+              ) : (
+                <Text style={styles.chartHint}>Tap a bar to see the count</Text>
+              )}
+              <BarChart
+                data={statusBarData}
+                width={CHART_WIDTH}
+                height={200}
+                barWidth={BAR_WIDTH}
+                barBorderRadius={6}
+                spacing={barSpacing}
+                initialSpacing={16}
+                endSpacing={8}
+                maxValue={barMax + Math.ceil(barMax * 0.25)}
+                noOfSections={4}
+                yAxisThickness={0}
+                xAxisThickness={1}
+                xAxisColor={colors.border}
+                xAxisLabelTextStyle={{ color: colors.textSecondary, fontSize: 9 }}
+                yAxisTextStyle={{ color: colors.textSecondary, fontSize: 9 }}
+                isAnimated
+                animationDuration={600}
+                showGradient={false}
+                onPress={(item: any) => setSelectedBar({ label: item.label, value: item.value })}
+                renderTooltip={(item: any) => (
+                  <View style={{ width: BAR_WIDTH, alignItems: 'center' }}>
+                    <View style={styles.barTooltipBubble}>
+                      <Text style={styles.barTooltipText}>{item.value}</Text>
+                    </View>
+                  </View>
+                )}
+              />
+            </>
           ) : (
             <View style={styles.emptyChart}>
               <Ionicons name="bar-chart-outline" size={48} color={colors.textLight} />
@@ -226,19 +234,73 @@ export default function AdminDashboardScreen() {
           )}
         </View>
 
-        {/* Line Chart */}
+        {/* ── Line Chart: Monthly Trend ── */}
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
             <Ionicons name="trending-up" size={18} color={colors.primary} />
             <Text style={styles.cardTitle}>Monthly Leads Trend</Text>
           </View>
+
+          {selectedPoint ? (
+            <View style={styles.tooltipBox}>
+              <Text style={styles.tooltipLabel}>{selectedPoint.label}</Text>
+              <Text style={styles.tooltipValue}>{selectedPoint.value} leads</Text>
+            </View>
+          ) : (
+            <Text style={styles.chartHint}>Tap a point to see the month's total</Text>
+          )}
+
           <LineChart
-            data={monthlyChartData}
+            data={lineData}
             width={CHART_WIDTH}
             height={200}
-            chartConfig={chartConfig}
-            style={styles.chart}
-            bezier
+            spacing={lineSpacing}
+            initialSpacing={8}
+            maxValue={lineMax + Math.ceil(lineMax * 0.25)}
+            noOfSections={4}
+            color={colors.primary}
+            thickness={3}
+            curved={false}
+            isAnimated
+            animationDuration={700}
+            yAxisThickness={0}
+            xAxisThickness={1}
+            xAxisColor={colors.border}
+            xAxisLabelTextStyle={{ color: colors.textSecondary, fontSize: 9 }}
+            yAxisTextStyle={{ color: colors.textSecondary, fontSize: 9 }}
+            dataPointsColor={colors.primary}
+            dataPointsRadius={5}
+            startFillColor={colors.primary}
+            endFillColor={colors.white}
+            startOpacity={0.2}
+            endOpacity={0.02}
+            areaChart
+            focusEnabled
+            showDataPointOnFocus
+            showStripOnFocus
+            showTextOnFocus
+            stripColor={colors.primaryLight}
+            stripHeight={160}
+            rulesType="dashed"      
+            rulesLength={CHART_WIDTH - 20}
+            onFocus={(item: any) => setSelectedPoint({ label: item.label, value: item.value })}
+            pointerConfig={{
+              pointerStripHeight: 200,
+              pointerStripColor: colors.primaryLight,
+              pointerStripWidth: 2,
+              pointerColor: colors.primaryDark,
+              radius: 6,
+              pointerLabelWidth: 100,
+              pointerLabelHeight: 44,
+              activatePointersOnLongPress: false,
+              autoAdjustPointerLabelPosition: true,
+              pointerLabelComponent: (items: any) => (
+                <View style={styles.linePointerBubble}>
+                  <Text style={styles.linePointerText}>{items[0]?.label}</Text>
+                  <Text style={styles.linePointerValue}>{items[0]?.value} leads</Text>
+                </View>
+              ),
+            }}
           />
         </View>
 
@@ -249,10 +311,7 @@ export default function AdminDashboardScreen() {
               <Ionicons name="trophy" size={18} color="#F59E0B" />
               <Text style={styles.cardTitle}>Top Performers Today</Text>
             </View>
-            <TouchableOpacity
-              style={styles.seeAllBtn}
-              onPress={() => navigation.navigate('AdminPerformance')}
-            >
+            <TouchableOpacity style={styles.seeAllBtn} onPress={() => navigation.navigate('AdminPerformance')}>
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -267,29 +326,19 @@ export default function AdminDashboardScreen() {
               const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
               return (
                 <View key={perf.employee._id} style={styles.empRow}>
-                  <View style={[styles.rankCircle,
-                  { backgroundColor: rankColors[index] || colors.border }
-                  ]}>
+                  <View style={[styles.rankCircle, { backgroundColor: rankColors[index] || colors.border }]}>
                     <Text style={styles.rankText}>{index + 1}</Text>
                   </View>
                   <View style={styles.empInfo}>
                     <Text style={styles.empName}>{perf.employee.name}</Text>
-                    <Text style={styles.empEmail}>
-                      {perf.assignedToday} assigned • {perf.previousPending} pending
-                    </Text>
+                    <Text style={styles.empEmail}>{perf.assignedToday} assigned • {perf.previousPending} pending</Text>
                   </View>
                   <View style={styles.empStats}>
-                    <Text style={[styles.empLeadCount, { color: '#059669' }]}>
-                      {perf.bookedToday}
-                    </Text>
+                    <Text style={[styles.empLeadCount, { color: '#059669' }]}>{perf.bookedToday}</Text>
                     <Text style={styles.empLeadLabel}>booked</Text>
                   </View>
-                  <View style={[styles.conversionPill,
-                  { backgroundColor: perf.conversionRate >= 50 ? '#ECFDF5' : '#FEF9E7' }
-                  ]}>
-                    <Text style={[styles.conversionText,
-                    { color: perf.conversionRate >= 50 ? '#059669' : '#F59E0B' }
-                    ]}>
+                  <View style={[styles.conversionPill, { backgroundColor: perf.conversionRate >= 50 ? '#ECFDF5' : '#FEF9E7' }]}>
+                    <Text style={[styles.conversionText, { color: perf.conversionRate >= 50 ? '#059669' : '#F59E0B' }]}>
                       {perf.conversionRate}%
                     </Text>
                   </View>
@@ -306,32 +355,25 @@ export default function AdminDashboardScreen() {
             <Text style={styles.cardTitle}>Quick Actions</Text>
           </View>
           <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.quickBtn}
-              onPress={() => navigation.navigate('AddEmployee')}>
-              <View style={[styles.quickIcon, { backgroundColor: '#E8F8F2' }]}>
+            <TouchableOpacity style={styles.quickBtn} onPress={() => navigation.navigate('AddEmployee')}>
+              <View style={[styles.quickIcon, { backgroundColor: '#e3f5f8' }]}>
                 <Ionicons name="person-add" size={22} color={colors.primary} />
               </View>
               <Text style={styles.quickLabel}>Add</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.quickBtn}
-              onPress={() => navigation.navigate('AdminLeads')}>
+            <TouchableOpacity style={styles.quickBtn} onPress={() => navigation.navigate('AdminLeads')}>
               <View style={[styles.quickIcon, { backgroundColor: '#EEF2FF' }]}>
                 <Ionicons name="list" size={22} color="#6366F1" />
               </View>
               <Text style={styles.quickLabel}>All Leads</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.quickBtn}
-              onPress={() => navigation.navigate('AdminEmployees')}>
+            <TouchableOpacity style={styles.quickBtn} onPress={() => navigation.navigate('AdminEmployees')}>
               <View style={[styles.quickIcon, { backgroundColor: '#FEF9E7' }]}>
                 <Ionicons name="people" size={22} color="#F59E0B" />
               </View>
               <Text style={styles.quickLabel}>Employees</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.quickBtn}
-              onPress={() => navigation.navigate('LeadArchive')}>
+            <TouchableOpacity style={styles.quickBtn} onPress={() => navigation.navigate('LeadArchive')}>
               <View style={[styles.quickIcon, { backgroundColor: '#F0FDF4' }]}>
                 <Ionicons name="archive" size={22} color="#059669" />
               </View>
@@ -352,172 +394,107 @@ const styles = StyleSheet.create({
     alignItems: 'center', paddingHorizontal: spacing.base,
     paddingTop: spacing.base, paddingBottom: spacing.lg,
   },
-  greeting: {
-    fontSize: typography.xl, fontWeight: typography.bold,
-    color: colors.textPrimary,
-  },
-  subGreeting: {
-    fontSize: typography.sm, color: colors.textSecondary, marginTop: 2,
-  },
-  logoutBtn: {
-    backgroundColor: colors.white, padding: spacing.sm,
-    borderRadius: 10, elevation: 2,
-  },
+  greeting: { fontSize: typography.xl, fontWeight: typography.bold, color: colors.textPrimary },
+  subGreeting: { fontSize: typography.sm, color: colors.textSecondary, marginTop: 2 },
   statsRow: {
     flexDirection: 'row', paddingHorizontal: spacing.base,
     gap: spacing.sm, marginBottom: spacing.lg, marginTop: spacing.xs,
   },
   monthlyLeadsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#E8F8F2',
     marginHorizontal: spacing.base,
-    marginTop: spacing.xs,
-    marginBottom: spacing.lg,
-    borderRadius: 16,
-    padding: spacing.base,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    marginTop: spacing.xs, marginBottom: spacing.lg,
+    borderRadius: 16, padding: spacing.base,
+    borderWidth: 1.5, borderColor: colors.primary,
+    elevation: 2, shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4,
   },
   monthlyLeadsIconWrap: {
     width: 48, height: 48, borderRadius: 24,
     backgroundColor: colors.primaryLight,
-    justifyContent: 'center', alignItems: 'center',
-    marginRight: spacing.md,
+    justifyContent: 'center', alignItems: 'center', marginRight: spacing.md,
   },
   monthlyLeadsTextWrap: { flex: 1 },
-  monthlyLeadsValue: {
-    fontSize: 26, fontWeight: '800', color: colors.primaryDark, lineHeight: 30,
-  },
-  monthlyLeadsLabel: {
-    fontSize: typography.base, fontWeight: typography.semiBold, color: colors.textPrimary,
-  },
-  monthlyLeadsSub: {
-    fontSize: typography.xs, color: colors.primaryDark, marginTop: 1,
-  },
+  monthlyLeadsValue: { fontSize: 26, fontWeight: '800', color: colors.primaryDark, lineHeight: 30 },
+  monthlyLeadsLabel: { fontSize: typography.base, fontWeight: typography.semiBold, color: colors.textPrimary },
+  monthlyLeadsSub: { fontSize: typography.xs, color: colors.primaryDark, marginTop: 1 },
   statCard: {
     flex: 1, borderRadius: 16, padding: spacing.sm,
     alignItems: 'center', gap: 4, minHeight: 90,
-    elevation: 2,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    elevation: 2, shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3,
+    borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.5)',
   },
-  statCardFullWidth: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    gap: spacing.md,
-    minHeight: 64,
-  },
-  statTextColLeft: {
-    alignItems: 'flex-start',
-    gap: 2,
-  },
-  statLabelLeft: {
-    textAlign: 'left',
-  },
-  statValue: {
-    fontSize: typography.xl, fontWeight: typography.bold,
-    color: colors.textPrimary,
-  },
-  statLabel: {
-    fontSize: typography.xs, color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  statSubLabel: {
-    fontSize: 10, color: colors.textLight,
-    textAlign: 'center', marginTop: -2,
-  },
+  statCardFullWidth: { flexDirection: 'row', justifyContent: 'flex-start', gap: spacing.md, minHeight: 64 },
+  statTextColLeft: { alignItems: 'flex-start', gap: 2 },
+  statLabelLeft: { textAlign: 'left' },
+  statValue: { fontSize: typography.xl, fontWeight: typography.bold, color: colors.textPrimary },
+  statLabel: { fontSize: typography.xs, color: colors.textSecondary, textAlign: 'center' },
+  statSubLabel: { fontSize: 10, color: colors.textLight, textAlign: 'center', marginTop: -2 },
   card: {
     backgroundColor: colors.white, marginHorizontal: spacing.base,
     marginVertical: spacing.lg, borderRadius: 16, padding: spacing.base,
     elevation: 2, shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08, shadowRadius: 4,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4,
+    borderWidth: 1, borderColor: '#F0F0F0', overflow: 'hidden'
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    flex: 1,
-  },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },
   sectionHeaderWithAction: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-    width: '100%',
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: spacing.lg, width: '100%',
   },
-  cardTitle: {
-    fontSize: 14, fontWeight: typography.bold,
-    color: colors.textPrimary,
-    flex: 1,
+  cardTitle: { fontSize: 14, fontWeight: typography.bold, color: colors.textPrimary, flex: 1 },
+  seeAll: { fontSize: typography.xs, color: colors.primary, fontWeight: typography.semiBold },
+  seeAllBtn: { paddingLeft: spacing.md },
+  chartHint: {
+    fontSize: typography.xs, color: colors.textLight,
+    marginTop: spacing.xs, marginBottom: spacing.sm,
   },
-  seeAll: {
-    fontSize: typography.xs, color: colors.primary,
-    fontWeight: typography.semiBold,
+  tooltipBox: {
+    backgroundColor: colors.primaryLight, borderRadius: 10,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    marginTop: spacing.xs, marginBottom: spacing.sm,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  seeAllBtn: {
-    paddingLeft: spacing.md,
+  tooltipLabel: { fontSize: typography.sm, fontWeight: typography.semiBold, color: colors.primaryDark },
+  tooltipValue: { fontSize: typography.sm, fontWeight: typography.bold, color: colors.primaryDark },
+  barTooltipBubble: {
+    backgroundColor: colors.textPrimary, borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 4, marginBottom: 4,
+    alignSelf: 'center', alignItems: 'center'
   },
-  chart: { borderRadius: 16, marginTop: spacing.sm },
-  emptyChart: {
-    alignItems: 'center', paddingVertical: spacing.xl, gap: spacing.md,
+  barTooltipText: { color: colors.white, fontSize: typography.xs, fontWeight: typography.bold },
+  linePointerBubble: {
+    backgroundColor: colors.textPrimary, borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6,
   },
+  linePointerText: { color: colors.white, fontSize: 10, opacity: 0.8 },
+  linePointerValue: { color: colors.white, fontSize: typography.sm, fontWeight: typography.bold },
+  emptyChart: { alignItems: 'center', paddingVertical: spacing.xl, gap: spacing.md },
   emptyText: { fontSize: typography.base, color: colors.textSecondary },
   empRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: spacing.md, paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-    backgroundColor: '#FAFAFA',
-    borderRadius: 12,
-    marginBottom: spacing.sm,
+    gap: spacing.sm, backgroundColor: '#FAFAFA',
+    borderRadius: 12, marginBottom: spacing.sm,
   },
   rankCircle: {
     width: 24, height: 24, borderRadius: 12,
     backgroundColor: colors.border,
     justifyContent: 'center', alignItems: 'center',
   },
-  rankText: {
-    fontSize: typography.xs, fontWeight: typography.bold, color: colors.white,
-  },
+  rankText: { fontSize: typography.xs, fontWeight: typography.bold, color: colors.white },
   empInfo: { flex: 1 },
-  empName: {
-    fontSize: typography.sm, fontWeight: typography.semiBold, color: colors.textPrimary,
-  },
+  empName: { fontSize: typography.sm, fontWeight: typography.semiBold, color: colors.textPrimary },
   empEmail: { fontSize: typography.xs, color: colors.textSecondary },
   empStats: { alignItems: 'center' },
-  empLeadCount: {
-    fontSize: typography.base, fontWeight: typography.bold, color: colors.primary,
-  },
+  empLeadCount: { fontSize: typography.base, fontWeight: typography.bold, color: colors.primary },
   empLeadLabel: { fontSize: typography.xs, color: colors.textSecondary },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  quickActions: {
-    flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm,
-  },
+  quickActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
   quickBtn: { alignItems: 'center', width: '22%' },
-  quickIcon: {
-    width: 52, height: 52, borderRadius: 16,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  quickLabel: {
-    fontSize: 9, color: colors.textSecondary, alignContent: 'center', fontWeight: typography.medium,
-  },
-  conversionPill: {
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 10,
-  },
-  conversionText: {
-    fontSize: typography.xs, fontWeight: typography.bold,
-  },
+  quickIcon: { width: 52, height: 52, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  quickLabel: { fontSize: 9, color: colors.textSecondary, alignContent: 'center', fontWeight: typography.medium },
+  conversionPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  conversionText: { fontSize: typography.xs, fontWeight: typography.bold },
 });

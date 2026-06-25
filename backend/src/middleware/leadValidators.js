@@ -1,6 +1,6 @@
 const { body, query, param } = require('express-validator');
 
-const LEAD_STATUSES = ['Hot', 'Warm', 'Cold', 'Follow Up', 'Booked'];
+const LEAD_STATUSES = ['New', 'Interested', 'Contacted', 'Not Interested', 'Pending', 'Booked'];
 
 // Strips country code prefix (+91, 91) then removes all non-digits.
 // Returns only the 10-digit number or throws for validation.

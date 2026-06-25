@@ -289,7 +289,7 @@ export default function AddLeadScreen() {
           </View>
 
           {/* ── Submit ── */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
             onPress={handleSubmit}
             disabled={isSubmitting}

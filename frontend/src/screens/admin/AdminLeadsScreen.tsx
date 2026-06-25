@@ -9,6 +9,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLeadStore } from '../../store/leadStore';
+import { useAdminStore } from '../../store/adminStore';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -19,17 +20,18 @@ import {
   Flame,
   Target,
   Snowflake,
-  PhoneCall,
+  Clock,
   CircleCheckBig,
   LucideIcon,
 } from 'lucide-react-native';
 
 // ─────────────────────────────────────────────
 const STATUS_COLORS: Record<string, string> = {
-  'Hot': '#EF4444',
-  'Warm': '#F59E0B',
-  'Cold': '#3B82F6',
-  'Follow Up': '#8B5CF6',
+  'New': '#6B7280',
+  'Interested': '#EF4444',
+  'Contacted': '#F59E0B',
+  'Not Interested': '#3B82F6',
+  'Pending': '#D97706',
   'Booked': '#059669',
 };
 
@@ -41,11 +43,11 @@ type StatusFilter = {
 };
 
 const STATUS_FILTERS: StatusFilter[] = [
-  { label: 'All', value: 'All', icon: LayoutList, color: colors.textSecondary },
-  { label: 'Hot', value: 'Hot', icon: Flame, color: '#EF4444' },
-  { label: 'Warm', value: 'Warm', icon: Target, color: '#F59E0B' },
-  { label: 'Cold', value: 'Cold', icon: Snowflake, color: '#3B82F6' },
-  { label: 'Follow Up', value: 'Follow Up', icon: PhoneCall, color: '#8B5CF6' },
+  { label: 'New', value: 'New', icon: LayoutList, color: '#6B7280' },
+  { label: 'Interested', value: 'Interested', icon: Flame, color: '#EF4444' },
+  { label: 'Contacted', value: 'Contacted', icon: Target, color: '#F59E0B' },
+  { label: 'Not Interested', value: 'Not Interested', icon: Snowflake, color: '#3B82F6' },
+  { label: 'Pending', value: 'Pending', icon: Clock, color: '#D97706' },
   { label: 'Booked', value: 'Booked', icon: CircleCheckBig, color: '#059669' },
 ];
 
@@ -326,17 +328,21 @@ function AddLeadModal({
 export default function AdminLeadsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { leads, fetchLeads, isLoading } = useLeadStore();
+  // FIX: Previously used fetchLeads from leadStore which hits /leads (getMyLeads).
+  // Even though getMyLeads doesn't filter by assignedTo for admins, it shares
+  // the Zustand `leads` state with the employee flow — causing stale state issues
+  // and subtle scoping bugs in production. Switch to fetchAllLeads from adminStore
+  // which hits /admin/leads (getAllLeads) — the purpose-built admin endpoint.
+  const { fetchAllLeads } = useAdminStore();
+  const { createLead } = useLeadStore(); // still needed for AddLeadModal
+  const [leads, setLeads] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState('All');
+  const [activeFilter, setActiveFilter] = useState('New');
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Today's date range for filtering
-  // FIX: toISOString() converts to UTC before extracting the date, so near
-  // midnight in IST (e.g. 12:30 AM) this could return YESTERDAY's date —
-  // the admin "Leads" tab would then silently show yesterday's leads
-  // instead of today's. Build the date string from local calendar fields.
+  // Build YYYY-MM-DD from local calendar (not UTC) to avoid midnight IST shift
   const getTodayFilter = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -345,27 +351,61 @@ export default function AdminLeadsScreen() {
     return `${year}-${month}-${day}`;
   };
 
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchLeads({ dateFrom: getTodayFilter(), dateTo: getTodayFilter() });
-    }, [])
-  );
+  // Prevents the search/filter useEffect from firing a redundant fetch when
+  // useFocusEffect resets state — those two setState calls trigger useEffect
+  // with the OLD state values (async update), overwriting the correct results.
+  const skipNextEffect = React.useRef(false);
+
+  const loadLeads = React.useCallback(async (searchVal = search, filterVal = activeFilter) => {
+    setIsLoading(true);
+    try {
+      const filters: Record<string, string> = {};
+      // Only pending shows all-time leads; every other chip = today only
+      if (filterVal !== 'Pending') {
+        filters.dateFrom = getTodayFilter();
+        filters.dateTo = getTodayFilter();
+      }
+      if (searchVal) filters.search = searchVal;
+      filters.status = filterVal;
+      const { leads: data } = await fetchAllLeads(filters);
+      setLeads(data);
+    } catch (err: any) {
+      console.error('AdminLeadsScreen fetchAllLeads error:', err.message);
+      setLeads([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+// AFTER
+const searchRef = React.useRef(search);
+const activeFilterRef = React.useRef(activeFilter);
+React.useEffect(() => { searchRef.current = search; }, [search]);
+React.useEffect(() => { activeFilterRef.current = activeFilter; }, [activeFilter]);
+
+useFocusEffect(
+  React.useCallback(() => {
+    // Refetch with current filter/search — no reset, no need to
+    // skip the next effect since we're not touching search/activeFilter state.
+    loadLeads(searchRef.current, activeFilterRef.current);
+  }, [])
+);
 
   useEffect(() => {
+    // Skip the first fire caused by useFocusEffect's setState calls above.
+    if (skipNextEffect.current) {
+      skipNextEffect.current = false;
+      return;
+    }
     const timer = setTimeout(() => {
-      fetchLeads({
-        search: search || undefined,
-        status: activeFilter !== 'All' ? activeFilter as any : undefined,
-        dateFrom: getTodayFilter(),
-        dateTo: getTodayFilter(),
-      });
+      loadLeads(search, activeFilter);
     }, 400);
     return () => clearTimeout(timer);
   }, [search, activeFilter]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchLeads({ dateFrom: getTodayFilter(), dateTo: getTodayFilter() });
+    await loadLeads(search, activeFilter);
     setRefreshing(false);
   };
 
@@ -376,21 +416,7 @@ export default function AdminLeadsScreen() {
       text2: `${leadName} has been added successfully`,
       visibilityTime: 2500,
     });
-    // FIX: this previously called fetchLeads() with no arguments. For an
-    // admin, getMyLeads has no date scoping unless dateFrom/dateTo are
-    // passed — so a bare call returned EVERY lead in the database,
-    // unfiltered, momentarily replacing the today-only list with all-time
-    // data (the "50 leads dumped instantly" glitch). The next pull-to-
-    // refresh or focus event correctly re-applied the today filter, making
-    // it look like leads "disappeared" — they were just the correct
-    // today-only set reasserting itself. Always refetch with the exact
-    // same filters the rest of this screen uses.
-    await fetchLeads({
-      search: search || undefined,
-      status: activeFilter !== 'All' ? activeFilter as any : undefined,
-      dateFrom: getTodayFilter(),
-      dateTo: getTodayFilter(),
-    });
+    await loadLeads(search, activeFilter);
   };
 
 

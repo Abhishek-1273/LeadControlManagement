@@ -7,10 +7,11 @@ import { spacing } from '../../theme/spacing';
 import { Lead } from '../../types/lead.types';
 
 const STATUS_COLORS: Record<string, string> = {
-  Hot: colors.statusHot,
-  Warm: colors.warning,
-  Cold: colors.primary,
-  'Follow Up': colors.statusFollowUp,
+  New: '#6B7280',
+  Interested: colors.statusInterested,
+  Contacted: colors.warning,
+  'Not Interested': colors.primary,
+  Pending: '#D97706',
   Booked: colors.statusBooked,
 };
 

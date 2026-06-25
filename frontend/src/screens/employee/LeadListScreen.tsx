@@ -16,45 +16,42 @@ import { spacing } from '../../theme/spacing';
 import { Lead, LeadStatus } from '../../types/lead.types';
 import { useLeadStore } from '../../store/leadStore';
 import {
-  LayoutList,
+  Sparkles,
   Flame,
   Target,
   Snowflake,
-  PhoneCall,
+  Clock,
   CircleCheckBig,
   LucideIcon,
 } from 'lucide-react-native';
 
-// ─────────────────────────────────────────────
 type StatusFilter = {
   label: string;
-  value: LeadStatus | 'All';
+  value: LeadStatus | 'New';
   icon: LucideIcon;
   color: string;
 };
 
 const STATUS_FILTERS: StatusFilter[] = [
-  { label: 'All', value: 'All', icon: LayoutList, color: colors.textSecondary },
-  { label: 'Hot', value: 'Hot', icon: Flame, color: colors.statusHot },            // red
-  { label: 'Warm', value: 'Warm', icon: Target, color: colors.warning },             // amber
-  { label: 'Cold', value: 'Cold', icon: Snowflake, color: colors.primary },             // blue
-  { label: 'Follow Up', value: 'Follow Up', icon: PhoneCall, color: colors.statusFollowUp },      // purple
-  { label: 'Booked', value: 'Booked', icon: CircleCheckBig, color: colors.statusBooked },         // green
+  { label: 'New', value: 'New', icon: Sparkles, color: colors.textSecondary },
+  { label: 'Interested', value: 'Interested', icon: Flame, color: colors.statusInterested },
+  { label: 'Contacted', value: 'Contacted', icon: Target, color: colors.warning },
+  { label: 'Not Interested', value: 'Not Interested', icon: Snowflake, color: colors.primary },
+  { label: 'Pending', value: 'Pending', icon: Clock, color: colors.pending },
+  { label: 'Booked', value: 'Booked', icon: CircleCheckBig, color: colors.statusBooked },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  Hot: colors.statusHot,
-  Warm: colors.warning,
-  Cold: colors.primary,
-  'Follow Up': colors.statusFollowUp,
+  New: '#6B7280',
+  Interested: colors.statusInterested,
+  Contacted: colors.warning,
+  'Not Interested': colors.primary,
+  Pending: colors.pending,
   Booked: colors.statusBooked,
 };
 
 const PHONE_REGEX = /^\d{10}$/;
 
-// ─────────────────────────────────────────────
-// Types for FlatList items
-// ─────────────────────────────────────────────
 type HeaderItem = {
   _id: string;
   isHeader: true;
@@ -72,9 +69,6 @@ type LeadItem = Lead & {
 };
 type ListItem = HeaderItem | DividerItem | LeadItem;
 
-// ─────────────────────────────────────────────
-// LeadCard Component
-// ─────────────────────────────────────────────
 const formatLeadDate = (dateStr: string) => {
   const d = new Date(dateStr);
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -171,9 +165,6 @@ const LeadCard = React.memo(({
   );
 });
 
-// ─────────────────────────────────────────────
-// FilterModal Component
-// ─────────────────────────────────────────────
 const FilterModal = ({
   visible, onClose, onApply, currentFilters,
 }: {
@@ -252,9 +243,6 @@ const FilterModal = ({
   );
 };
 
-// ─────────────────────────────────────────────
-// AddLeadModal Component
-// ─────────────────────────────────────────────
 const EMPTY_FORM = {
   name: '', primaryPhone: '', secondaryPhone: '',
   email: '', city: '', car: '',
@@ -457,9 +445,6 @@ const AddLeadModal = ({
   );
 };
 
-// ─────────────────────────────────────────────
-// Main Screen
-// ─────────────────────────────────────────────
 export default function LeadListScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -471,19 +456,13 @@ export default function LeadListScreen() {
   } = useLeadStore();
 
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState<LeadStatus | 'All'>('All');
+  const [activeFilter, setActiveFilter] = useState<LeadStatus | 'New'>('New');
 
-  // Determine which lead list to show. `leads` is already scoped to
-  // today's window for employees by the backend (getMyLeads), so this is
-  // simply "My Leads" — Today's Leads from the dashboard now points here
-  // too (same screen, no special param needed). Previous Pending and
-  // Booked have their own dedicated screens (PreviousPendingScreen /
-  // BookedLeadsScreen) and never render through this component.
   const displayLeads = React.useMemo(() => {
-    if (activeFilter !== 'All') {
-      return leads.filter((l) => l.status === activeFilter);
+    if (activeFilter === 'New') {
+      return leads.filter((l) => l.status === 'New');
     }
-    return leads;
+    return leads.filter((l) => l.status === (activeFilter as string));
   }, [leads, activeFilter]);
 
   const screenTitle = 'My Leads';
@@ -493,40 +472,38 @@ export default function LeadListScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<any>({});
 
-  // Keep a ref mirror of the current filter/search so the focus effect
-  // always reads the *latest* selection instead of a stale closure value.
-  const activeFilterRef = React.useRef(activeFilter);
   const searchRef = React.useRef(search);
-  React.useEffect(() => {
-    activeFilterRef.current = activeFilter;
-  }, [activeFilter]);
   React.useEffect(() => {
     searchRef.current = search;
   }, [search]);
 
-  // Re-fetch on focus (e.g. when returning from Lead Details) WITHOUT
-  // resetting the currently selected filter/search. Previously this called
-  // fetchLeads() with no arguments, which replaced the store's `leads` with
-  // the full unfiltered list every time the screen regained focus — wiping
-  // out whatever status filter (Hot/Warm/Cold/Follow Up/etc.) was active,
-  // even though the chip itself stayed visually selected. We now read the
-  // latest filter/search from refs and pass them through to fetchLeads so
-  // the result set always matches the active filter.
-  useFocusEffect(
-    useCallback(() => {
-      fetchLeads({
-        search: searchRef.current || undefined,
-        status: activeFilterRef.current !== 'All' ? activeFilterRef.current : undefined,
-      });
-    }, [])
-  );
+  const getApiStatus = (filter: LeadStatus | 'New'): LeadStatus | undefined => {
+    if (filter === 'New') return 'New';
+    return filter;
+  };
 
-  // Debounced fetch whenever the user explicitly changes search or filter.
+// AFTER
+const activeFilterRef = React.useRef(activeFilter);
+React.useEffect(() => {
+  activeFilterRef.current = activeFilter;
+}, [activeFilter]);
+
+useFocusEffect(
+  useCallback(() => {
+    // Just refetch with whatever filter/search is already selected —
+    // don't reset to "New" on every focus.
+    fetchLeads({
+      search: searchRef.current || undefined,
+      status: getApiStatus(activeFilterRef.current),
+    });
+  }, [])
+);
+
   React.useEffect(() => {
     const timer = setTimeout(() => {
       fetchLeads({
         search: search || undefined,
-        status: activeFilter !== 'All' ? activeFilter : undefined,
+        status: getApiStatus(activeFilter),
       });
     }, 400);
     return () => clearTimeout(timer);
@@ -536,7 +513,7 @@ export default function LeadListScreen() {
     setRefreshing(true);
     await fetchLeads({
       search: search || undefined,
-      status: activeFilter !== 'All' ? activeFilter : undefined,
+      status: getApiStatus(activeFilter),
     });
     setRefreshing(false);
   };
@@ -551,17 +528,13 @@ export default function LeadListScreen() {
     await fetchLeads();
   };
 
-  // FIX: 'Uninterested' is not one of the 5 valid statuses
-  // (Hot / Warm / Cold / Follow Up / Booked). Using it here would get
-  // rejected by the backend's status enum validator. Swapped to 'Cold',
-  // which is this app's equivalent of a deprioritised lead.
   const handleUninterested = async (lead: Lead) => {
     try {
-      await updateStatus(lead._id, 'Cold');
+      await updateStatus(lead._id, 'Not Interested');
       Toast.show({
         type: 'info',
-        text1: 'Marked Cold',
-        text2: `${lead.name} marked as cold`,
+        text1: 'Marked Not Interested',
+        text2: `${lead.name} marked as not interested`,
         visibilityTime: 2000,
       });
     } catch {
@@ -617,22 +590,8 @@ export default function LeadListScreen() {
     }
 
     return items;
-    // FIX: this previously depended on [leads, applyAdvancedFilter] while
-    // actually reading `displayLeads` inside the memo body. `displayLeads`
-    // can change (e.g. switching between todayLeads/leads/pendingLeads, or
-    // the activeFilter changing) without the raw `leads` reference changing,
-    // so listData silently kept stale data in those cases. Depending on
-    // displayLeads directly fixes that.
   }, [displayLeads, applyAdvancedFilter]);
 
-  // The header count must always match what's actually rendered in the
-  // FlatList below — i.e. the same pinned + unpinned leads from listData,
-  // counting only real lead items (headers/dividers excluded). Previously
-  // this text always read `leads.length` (the raw, full store list) no
-  // matter which dataset displayLeads/listData were actually showing,
-  // which caused the header to read "28 leads" while the list itself
-  // (built from todayLeads, pendingLeads, or a filtered subset) rendered
-  // zero items and showed "No leads found".
   const visibleLeadCount = React.useMemo(
     () => listData.filter((item) => !item.isHeader && !item.isDivider).length,
     [listData]
@@ -714,7 +673,6 @@ export default function LeadListScreen() {
           )}
         </View>
 
-        {/* Status Filter Chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -795,9 +753,6 @@ export default function LeadListScreen() {
   );
 }
 
-// ─────────────────────────────────────────────
-// Styles
-// ─────────────────────────────────────────────
 const styles = StyleSheet.create({
   wrapper: { backgroundColor: colors.background, flex: 1 },
   safeArea: { flex: 1 },
@@ -917,9 +872,6 @@ const styles = StyleSheet.create({
   leadCar: { fontSize: typography.xs, color: colors.primary, marginTop: 2, fontWeight: typography.medium },
   statusBadge: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: 8 },
   statusText: { fontSize: typography.xs, fontWeight: typography.semiBold },
-  // FIX: cardBottom previously had no top spacing from cardTop other than
-  // the parent's `gap: spacing.xs`, which felt cramped under the avatar
-  // row on smaller screens. Added explicit marginTop for breathing room.
   cardBottom: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginTop: 2,
@@ -935,9 +887,6 @@ const styles = StyleSheet.create({
   emptySubText: { fontSize: typography.sm, color: colors.textLight, textAlign: 'center' },
 });
 
-// ─────────────────────────────────────────────
-// Filter Modal Styles (shared with AddLeadModal)
-// ─────────────────────────────────────────────
 const filterStyles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   container: { backgroundColor: colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
@@ -981,9 +930,6 @@ const filterStyles = StyleSheet.create({
   applyText: { fontSize: typography.base, color: colors.white, fontWeight: typography.bold },
 });
 
-// ─────────────────────────────────────────────
-// Add Lead Modal Styles
-// ─────────────────────────────────────────────
 const addStyles = StyleSheet.create({
   kav: { flex: 1, justifyContent: 'flex-end' },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
@@ -991,6 +937,7 @@ const addStyles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     maxHeight: '90%',
+    flexShrink: 1,
   },
   handle: {
     width: 36, height: 4, borderRadius: 2,

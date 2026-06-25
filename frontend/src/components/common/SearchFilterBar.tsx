@@ -1,7 +1,7 @@
 import React from 'react';
 import {
-  View, TextInput, StyleSheet, TouchableOpacity,
-  Animated, useWindowDimensions
+  View, Text, TextInput, StyleSheet, TouchableOpacity,
+  Animated
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';

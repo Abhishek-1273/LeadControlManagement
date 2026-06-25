@@ -47,7 +47,7 @@ export default function PreviousPendingScreen() {
         <View style={styles.banner}>
           <Ionicons name="hourglass" size={16} color="#F59E0B" />
           <Text style={styles.bannerText}>
-            Unbooked leads from previous days
+            Leads that moved to pending status
           </Text>
         </View>
 

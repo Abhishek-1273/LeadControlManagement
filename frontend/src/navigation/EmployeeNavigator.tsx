@@ -21,6 +21,7 @@ import TermsScreen from '../screens/common/TermsScreen';
 import PrivacyScreen from '../screens/common/PrivacyScreen';
 import HelpSupportScreen from '../screens/common/HelpSupportScreen';
 import BookAppointmentScreen from '../screens/employee/BookAppointmentScreen';
+import EmployeeArchiveScreen from '../screens/employee/EmployeeArchiveScreen';
 import { colors } from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
@@ -48,6 +49,8 @@ function TabNavigator() {
             iconName = focused ? 'grid' : 'grid-outline';
           } else if (route.name === 'Leads') {
             iconName = focused ? 'people' : 'people-outline';
+          } else if (route.name === 'Archive') {
+            iconName = focused ? 'archive' : 'archive-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -57,6 +60,7 @@ function TabNavigator() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Leads" component={LeadListScreen} />
+      <Tab.Screen name="Archive" component={EmployeeArchiveScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

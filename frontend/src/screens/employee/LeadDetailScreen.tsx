@@ -15,17 +15,19 @@ import { spacing } from '../../theme/spacing';
 import { LeadStatus } from '../../types/lead.types';
 import { useLeadStore } from '../../store/leadStore';
 import axiosInstance from '../../api/axiosInstance';
+import { Alert } from 'react-native';
 
 const STATUS_COLORS: Record<string, string> = {
-  'Hot': '#EF4444',
-  'Warm': '#F59E0B',
-  'Cold': '#3B82F6',
-  'Follow Up': '#8B5CF6',
+  'New': '#6B7280',
+  'Interested': '#EF4444',
+  'Contacted': '#F59E0B',
+  'Not Interested': '#3B82F6',
+  'Pending': '#D97706',
   'Booked': '#059669',
 };
 
 const ALL_STATUSES: LeadStatus[] = [
-  'Hot', 'Warm', 'Cold', 'Follow Up', 'Booked']
+  'Interested', 'Contacted', 'Not Interested', 'Pending', 'Booked']
 
 const TimelineItem = ({ icon, title, desc, time, isLast }: {
   icon: string; title: string;
@@ -85,17 +87,29 @@ export default function LeadDetailScreen() {
 
   const {
     selectedLead, fetchLeadById,
-    updateStatus, togglePin, isLoading
+    updateStatus, togglePin, isLoading,
+    softDeleteLead, fetchLeadAppointment,
   } = useLeadStore();
 
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showVisitorDatePicker, setShowVisitorDatePicker] = useState(false);
-
-  useEffect(() => {
-    if (leadId) fetchLeadById(leadId);
-  }, [leadId]);
+  const [appointment, setAppointment] = useState<any>(null);
 
   const lead = selectedLead;
+
+  useEffect(() => {
+    if (leadId) {
+      fetchLeadById(leadId);
+    }
+  }, [leadId]);
+
+  useEffect(() => {
+    if (lead?.status === 'Booked' && leadId) {
+      fetchLeadAppointment(leadId).then((appt) => {
+        if (appt) setAppointment(appt);
+      });
+    }
+  }, [lead?.status, leadId]);
 
   if (isLoading || !lead) {
     return (
@@ -162,6 +176,38 @@ export default function LeadDetailScreen() {
     } catch {
       Toast.show({ type: 'error', text1: 'Failed ❌', text2: 'Could not update pin status' });
     }
+  };
+
+  const handleDelete = () => {
+    if (lead.status === 'Booked') {
+      Toast.show({ type: 'error', text1: 'Cannot Delete', text2: 'Booked leads cannot be deleted' });
+      return;
+    }
+    Alert.alert(
+      'Remove Lead',
+      `Remove "${lead.name}" from your list? It will still be visible in your Archive and can be restored.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await softDeleteLead(leadId);
+              Toast.show({
+                type: 'success',
+                text1: 'Lead Removed',
+                text2: 'You can restore it from Archive anytime',
+                visibilityTime: 2500,
+              });
+              navigation.goBack();
+            } catch {
+              Toast.show({ type: 'error', text1: 'Failed ❌', text2: 'Could not remove lead' });
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleVisitorDate = async (selectedDate: Date) => {
@@ -279,7 +325,7 @@ export default function LeadDetailScreen() {
         {/* Quick Actions */}
         <View style={styles.actionRow}>
           <TouchableOpacity style={styles.actionBtn} onPress={handleCall}>
-            <View style={[styles.actionIcon, { backgroundColor: '#E8F5E9' }]}>
+            <View style={[styles.actionIcon, { backgroundColor: '#e8f3f5' }]}>
               <Ionicons name="call" size={22} color={colors.primary} />
             </View>
             <Text style={styles.actionLabel}>Call</Text>
@@ -304,6 +350,26 @@ export default function LeadDetailScreen() {
             <Text style={styles.actionLabel}>Add Note</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => {
+              if (lead.status === 'Booked') {
+                Toast.show({
+                  type: 'error',
+                  text1: 'Booked lead cannot be deleted',
+                });
+                return;
+              }
+
+              handleDelete();
+            }}
+          >
+            <View style={[styles.actionIcon, { backgroundColor: '#FEF2F2' }]}>
+              <Ionicons name="trash-outline" size={22} color="#EF4444" />
+            </View>
+
+            <Text style={styles.actionLabel}>Delete</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() =>
@@ -357,24 +423,37 @@ export default function LeadDetailScreen() {
             label="Campaign"
             value={lead.campaign || ''}
           />
-          <InfoRow
-            icon="calendar-outline"
-            label="Visitor Date"
-            value={lead.visitorDate || 'Not scheduled'}
-          />
+          {lead.status === 'Booked' && appointment ? (
+            <>
+              <InfoRow
+                icon="calendar"
+                label="Appointment Date"
+                value={appointment.appointmentDate || '—'}
+              />
+              <InfoRow
+                icon="time"
+                label="Appointment Time"
+                value={appointment.appointmentTime || '—'}
+              />
+              {appointment.description ? (
+                <InfoRow
+                  icon="document-text-outline"
+                  label="Appointment Note"
+                  value={appointment.description}
+                />
+              ) : null}
+            </>
+          ) : (
+            <InfoRow
+              icon="calendar-outline"
+              label="Visitor Date"
+              value={lead.visitorDate || 'Not scheduled'}
+            />
+          )}
           <InfoRow
             icon="time-outline"
             label="Created"
             value={formatDate(lead.createdAt)}
-          />
-          <InfoRow
-            icon="person-circle-outline"
-            label="Assigned To"
-            value={
-              typeof lead.assignedTo === 'object'
-                ? (lead.assignedTo as any)?.name || '—'
-                : '—'
-            }
           />
         </View>
 
@@ -420,7 +499,6 @@ export default function LeadDetailScreen() {
             </View>
           </View>
         )}
-
         <View style={{ height: spacing.xl }} />
       </ScrollView>
 
@@ -606,6 +684,27 @@ const styles = StyleSheet.create({
   },
   noteTime: { fontSize: typography.xs, color: colors.textSecondary },
   noteContent: { fontSize: typography.sm, color: colors.textPrimary },
+  deleteSection: {
+    marginHorizontal: spacing.base,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
+  deleteBtnText: {
+    fontSize: typography.base,
+    fontWeight: typography.semiBold,
+    color: '#EF4444',
+  },
   modalOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end',

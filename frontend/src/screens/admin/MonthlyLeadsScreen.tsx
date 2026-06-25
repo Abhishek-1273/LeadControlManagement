@@ -12,11 +12,13 @@ import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
 const STATUS_COLORS: Record<string, string> = {
-  Hot: '#EF4444',
-  Warm: '#F59E0B',
-  Cold: '#3B82F6',
-  'Follow Up': '#8B5CF6',
+  new: '#6B7280',
+  Interested: '#EF4444',
+  Contacted: '#F59E0B',
+  'Not Interested': '#3B82F6',
+  Pending: '#D97706',
   Booked: '#059669',
+  Deleted: '#9CA3AF',
 };
 
 // ─── Date label helper (local-calendar based, matches localDateKey below) ──────
@@ -84,7 +86,9 @@ function LeadRow({ lead, onPress }: { lead: any; onPress: () => void }) {
       </View>
       <View style={styles.leadRight}>
         <View style={[styles.statusBadge, { backgroundColor: color + '18' }]}>
-          <Text style={[styles.statusText, { color }]}>{lead.status}</Text>
+          <Text style={[styles.statusText, { color }]}>
+            {lead.status}
+          </Text>
         </View>
         <Text style={styles.leadTime}>
           {new Date(lead.createdAt).toLocaleTimeString('en-IN', {

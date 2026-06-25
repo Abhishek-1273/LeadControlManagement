@@ -63,7 +63,6 @@ export default function BookedLeadsScreen() {
     ? 'Every lead you have ever booked'
     : 'Leads booked today';
   const emptyText = scope === 'all' ? 'No booked leads yet' : 'No leads booked today';
-
   return (
     <View style={styles.wrapper}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -91,7 +90,7 @@ export default function BookedLeadsScreen() {
           renderItem={({ item }) => (
             <SimpleLeadCard
               lead={item}
-              onPress={() => navigation.navigate('LeadDetail', { leadId: item._id })}
+              onPress={() => navigation.navigate('LeadDetail', { leadId: item._id, hidePin: true })}
               onTogglePin={() => handleTogglePin(item)}
               // "All Booked" spans many dates, so show the booking date per
               // card; "Booked Today" is all the same date, so the date adds

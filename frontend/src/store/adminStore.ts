@@ -33,9 +33,9 @@ export interface EmployeePerformance {
 interface AdminStats {
   monthLeads: number;
   todayLeads: number;
-  hot: number;
-  warm: number;
-  cold: number;
+  interested: number;
+  contacted: number;
+  notInterested: number;
   followUp: number;
   booked: number;
   allBooked: number;
@@ -84,8 +84,8 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   employees: [],
   selectedEmployee: null,
   stats: {
-    monthLeads: 0, todayLeads: 0, hot: 0,
-    warm: 0, cold: 0, followUp: 0, booked: 0, allBooked: 0,
+    monthLeads: 0, todayLeads: 0, interested: 0,
+    contacted: 0, notInterested: 0, followUp: 0, booked: 0, allBooked: 0,
     activeEmployees: 0, conversionRate: 0,
     appointmentsToday: 0, pendingLeads: 0,
   },

@@ -59,7 +59,7 @@ exports.getMyLeads = asyncHandler(async (req, res) => {
   const { role, _id } = req.user;
   const { search, status, dateFrom, dateTo, page = 1, limit = 50 } = req.query;
 
-  const filter = {};
+  const filter = { isDeleted: { $ne: true } };
   if (role === 'employee') filter.assignedTo = _id;
   if (status) filter.status = status;
 
@@ -75,21 +75,24 @@ exports.getMyLeads = asyncHandler(async (req, res) => {
     if (dateFrom) filter.createdAt.$gte = startOfDay(new Date(`${dateFrom}T12:00:00Z`));
     if (dateTo) filter.createdAt.$lte = endOfDay(new Date(`${dateTo}T12:00:00Z`));
   } else if (role === 'employee') {
-    // FIX: this endpoint previously had NO date scoping for employees, so
-    // "My Leads" (and every status chip — All/Hot/Warm/Cold/Follow Up,
-    // which all hit this same endpoint) returned every lead ever assigned
-    // to the employee, including old unbooked leads from previous days.
-    // Those old leads must only ever appear in Previous Pending
-    // (getEmployeePendingLeads) — never in today's workflow. Scope to
-    // today's window here, identical to getEmployeeTodayLeads, so My Leads
-    // and all its filters only ever operate on today's leads.
     const todayStart = startOfDay();
     const todayEnd = endOfDay();
-    filter.createdAt = { $gte: todayStart, $lte: todayEnd };
-    filter.$or = [
-      { status: { $ne: 'Booked' } },
-      { status: 'Booked', updatedAt: { $gte: todayStart } },
-    ];
+
+    if (status === 'New') {
+      // New: only today's leads with status 'New'
+      filter.createdAt = { $gte: todayStart, $lte: todayEnd };
+    } else if (status === 'Booked') {
+      // Booked chip: only leads booked today (updatedAt today)
+      filter.updatedAt = { $gte: todayStart, $lte: todayEnd };
+    } else if (!status) {
+      // No filter (default view): today's window, exclude old booked
+      filter.createdAt = { $gte: todayStart, $lte: todayEnd };
+      filter.$or = [
+        { status: { $ne: 'Booked' } },
+        { status: 'Booked', updatedAt: { $gte: todayStart } },
+      ];
+    }
+    // Interested / Contacted / Not Interested / Pending: all assigned leads, no date restriction
   }
 
   if (search) {
@@ -152,6 +155,17 @@ exports.updateStatus = asyncHandler(async (req, res) => {
   const lead = await getOwnedLead(req, res);
   if (!lead) return;
 
+  // 'Deleted' is a reserved status only ever set by softDeleteLead/restoreLead
+  // (so isDeleted/statusBeforeDelete/deletedAt stay in sync with it). Block
+  // it here so a generic status-change call can't desync those fields.
+  if (status === 'Deleted' || lead.isDeleted) {
+    return res.status(400).json({
+      message: lead.isDeleted
+        ? 'Lead is deleted — restore it before changing status'
+        : 'Use the delete action to remove a lead',
+    });
+  }
+
   const oldStatus = lead.status;
   lead.status = status;
   lead.timeline.push({
@@ -192,16 +206,34 @@ exports.togglePin = asyncHandler(async (req, res) => {
 // GET /leads/dashboard — Employee dashboard with Today's Leads + Previous Pending
 exports.getDashboardStats = asyncHandler(async (req, res) => {
   const { role, _id } = req.user;
-  const filter = role === 'employee' ? { assignedTo: _id } : {};
+  const filter = role === 'employee'
+    ? { assignedTo: _id, isDeleted: { $ne: true } }
+    : { isDeleted: { $ne: true } };
 
   // Today boundaries (app-timezone aware)
   const todayStart = startOfDay();
   const todayEnd = endOfDay();
 
   if (role === 'employee') {
-    // Today's leads — assigned today, NOT booked before today
+    // Promote stale 'New' leads (created before today) to 'Pending' —
+    // same logic as getEmployeePendingLeads so the count always matches.
+    await Lead.updateMany(
+      { assignedTo: _id, status: 'New', createdAt: { $lt: todayStart } },
+      {
+        $set: { status: 'Pending' },
+        $push: {
+          timeline: {
+            type: 'status_changed',
+            description: 'Status auto-changed: New → Pending (end of day)',
+          },
+        },
+      }
+    );
+
+    // Today's leads — assigned today, NOT booked before today, not deleted
     const todayLeadsQuery = {
       assignedTo: _id,
+      isDeleted: { $ne: true },
       createdAt: { $gte: todayStart, $lte: todayEnd },
       // Exclude leads that were booked on a previous day
       $or: [
@@ -210,13 +242,12 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
       ],
     };
 
-    // Previous pending leads — assigned before today, still active (not booked).
+    // Pending leads — leads with status 'Pending'.
     // Kept identical to getEmployeePendingLeads so the dashboard count always
     // matches the list the employee actually opens.
     const pendingLeadsQuery = {
       assignedTo: _id,
-      createdAt: { $lt: todayStart },
-      status: { $in: ['Hot', 'Warm', 'Cold', 'Follow Up'] },
+      status: 'Pending',
     };
 
     // Booked today (same day — still visible to employee)
@@ -226,7 +257,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
       updatedAt: { $gte: todayStart, $lte: todayEnd },
     };
 
-    // "My Lead Status" grid (Hot/Warm/Cold/Follow Up/Total) shows ONLY
+    // "My Lead Status" grid (Interested/Contacted/Not Interested/Pending/Total)
     // today's leads — matches the My Leads screen, which is also
     // today-scoped for employees. `todayFilter` mirrors `filter` but adds
     // the createdAt window.
@@ -238,18 +269,15 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     const monthLeadsQuery = { ...filter, createdAt: { $gte: monthStart } };
 
     const [
-      totalToday, hot, warm, cold, followUp, bookedAllTime, totalAllTime,
+      totalToday, interested, contacted, notInterested, bookedAllTime, totalAllTime,
       todayLeadsCount, previousPendingCount, bookedToday, todayFollowUps,
       monthLeadsCount,
     ] = await Promise.all([
       Lead.countDocuments(todayFilter),
-      Lead.countDocuments({ ...todayFilter, status: 'Hot' }),
-      Lead.countDocuments({ ...todayFilter, status: 'Warm' }),
-      Lead.countDocuments({ ...todayFilter, status: 'Cold' }),
-      Lead.countDocuments({ ...todayFilter, status: 'Follow Up' }),
-      // Booked / total stay all-time — needed for the "All Booked" screen
-      // and for a conversion rate that's meaningful (not skewed by a
-      // single day's small sample size).
+      Lead.countDocuments({ ...todayFilter, status: 'Interested' }),
+      Lead.countDocuments({ ...todayFilter, status: 'Contacted' }),
+      Lead.countDocuments({ ...todayFilter, status: 'Not Interested' }),
+      // Booked / total stay all-time
       Lead.countDocuments({ ...filter, status: 'Booked' }),
       Lead.countDocuments(filter),
       Lead.countDocuments(todayLeadsQuery),
@@ -270,12 +298,13 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     return res.json({
       totalLeads: totalToday,
       newToday: todayLeadsCount,
-      hot, warm, cold, followUp,
+      interested,
+      contacted,
+      notInterested,
       booked: bookedAllTime,
       conversionRate,
       todayFollowUps,
       pending: previousPendingCount,
-      // New fields for employee dashboard
       todayLeadsCount,
       previousPendingCount,
       bookedToday,
@@ -284,30 +313,27 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
   }
 
   // Admin path
-  const [total, newToday, hot, warm, cold, followUp, booked, followUps, pendingActive] =
+  const [total, newToday, interested, contacted, notInterested, booked, followUps, pendingActive] =
     await Promise.all([
       Lead.countDocuments(filter),
       Lead.countDocuments({ ...filter, createdAt: { $gte: todayStart } }),
-      Lead.countDocuments({ ...filter, status: 'Hot' }),
-      Lead.countDocuments({ ...filter, status: 'Warm' }),
-      Lead.countDocuments({ ...filter, status: 'Cold' }),
-      Lead.countDocuments({ ...filter, status: 'Follow Up' }),
+      Lead.countDocuments({ ...filter, status: 'Interested' }),
+      Lead.countDocuments({ ...filter, status: 'Contacted' }),
+      Lead.countDocuments({ ...filter, status: 'Not Interested' }),
       Lead.countDocuments({ ...filter, status: 'Booked' }),
-      // Org-wide follow-ups due today (admin has no follow-ups of their own).
       FollowUp.countDocuments({
         date: todayString(),
         isCompleted: false,
       }),
-      // Real pending = active, non-booked leads (not just the "Follow Up" status).
       Lead.countDocuments({
         ...filter,
-        status: { $in: ['Hot', 'Warm', 'Cold', 'Follow Up'] },
+        status: 'Pending',
       }),
     ]);
 
   res.json({
     totalLeads: total, newToday,
-    hot, warm, cold, followUp, booked,
+    interested, contacted, notInterested, booked,
     todayFollowUps: followUps,
     pending: pendingActive,
   });
@@ -321,6 +347,7 @@ exports.getEmployeeTodayLeads = asyncHandler(async (req, res) => {
 
   const leads = await Lead.find({
     assignedTo: _id,
+    isDeleted: { $ne: true },
     createdAt: { $gte: todayStart, $lte: todayEnd },
     $or: [
       { status: { $ne: 'Booked' } },
@@ -333,15 +360,29 @@ exports.getEmployeeTodayLeads = asyncHandler(async (req, res) => {
   res.json({ leads, total: leads.length });
 });
 
-// GET /leads/employee-pending — Previous days' pending leads
+// GET /leads/employee-pending — Leads with status 'Pending'
+// Also auto-promotes any 'New' leads from previous days to 'Pending' on fetch.
 exports.getEmployeePendingLeads = asyncHandler(async (req, res) => {
   const { _id } = req.user;
   const todayStart = startOfDay();
 
+  // Promote stale 'New' leads (created before today) to 'Pending'
+  await Lead.updateMany(
+    { assignedTo: _id, status: 'New', createdAt: { $lt: todayStart } },
+    {
+      $set: { status: 'Pending' },
+      $push: {
+        timeline: {
+          type: 'status_changed',
+          description: 'Status auto-changed: New → Pending (end of day)',
+        },
+      },
+    }
+  );
+
   const leads = await Lead.find({
     assignedTo: _id,
-    createdAt: { $lt: todayStart },
-    status: { $in: ['Hot', 'Warm', 'Cold', 'Follow Up'] },
+    status: 'Pending',
   })
     .populate('assignedTo', 'name email')
     .sort({ isPinned: -1, createdAt: -1 });
@@ -425,7 +466,7 @@ exports.createLead = asyncHandler(async (req, res) => {
     source: clip(source, 40) || 'Manual',
     campaign: clip(campaign, 120),
     car: clip(car, 80),
-    status: 'Cold',
+    status: 'New',
     assignedTo: assignee,
     timeline: [{
       type: 'created',
@@ -517,4 +558,110 @@ exports.updateLeadInfo = asyncHandler(async (req, res) => {
 
   await lead.save();
   res.json({ message: 'Lead updated successfully', lead });
+});
+// PATCH /leads/:id/soft-delete
+// Soft-deletes a lead — sets status='Deleted', isDeleted=true, and stores
+// the prior status in statusBeforeDelete so it can be restored later.
+// Only the assigned employee can soft-delete. Booked leads cannot be deleted.
+exports.softDeleteLead = asyncHandler(async (req, res) => {
+  const lead = await Lead.findById(req.params.id);
+  if (!lead) return res.status(404).json({ message: 'Lead not found' });
+
+  // Only assigned employee can delete
+  if (
+    req.user.role === 'employee' &&
+    lead.assignedTo?.toString() !== req.user._id.toString()
+  ) {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+
+  // Cannot delete Booked leads
+  if (lead.status === 'Booked') {
+    return res.status(400).json({ message: 'Booked leads cannot be deleted' });
+  }
+
+  // Already deleted
+  if (lead.isDeleted) {
+    return res.status(400).json({ message: 'Lead is already deleted' });
+  }
+
+  lead.statusBeforeDelete = lead.status;
+  lead.status = 'Deleted';
+  lead.isDeleted = true;
+  lead.deletedAt = new Date();
+  lead.deletedBy = req.user._id;
+  lead.timeline.push({
+    type: 'status_changed',
+    description: `Lead soft-deleted by ${req.user.name}`,
+  });
+
+  await lead.save();
+  res.json({ message: 'Lead removed successfully', lead });
+});
+
+// PATCH /leads/:id/restore
+// Restores a soft-deleted lead back to its previous status.
+exports.restoreLead = asyncHandler(async (req, res) => {
+  const lead = await Lead.findById(req.params.id);
+  if (!lead) return res.status(404).json({ message: 'Lead not found' });
+
+  if (
+    req.user.role === 'employee' &&
+    lead.assignedTo?.toString() !== req.user._id.toString()
+  ) {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+
+  if (!lead.isDeleted) {
+    return res.status(400).json({ message: 'Lead is not deleted' });
+  }
+
+  lead.status = lead.statusBeforeDelete || 'New';
+  lead.isDeleted = false;
+  lead.deletedAt = null;
+  lead.deletedBy = null;
+  lead.statusBeforeDelete = null;
+  lead.timeline.push({
+    type: 'status_changed',
+    description: `Lead restored by ${req.user.name}`,
+  });
+
+  await lead.save();
+  res.json({ message: 'Lead restored successfully', lead });
+});
+
+// GET /leads/employee-archive
+// Returns ALL leads ever assigned to the employee (including soft-deleted).
+// Supports optional ?status= filter.
+exports.getEmployeeArchive = asyncHandler(async (req, res) => {
+  const { _id } = req.user;
+  const { status, search } = req.query;
+
+  const filter = { assignedTo: _id };
+  if (status && status !== 'all') filter.status = status;
+  if (search) {
+    const safe = escapeRegex(String(search));
+    filter.$or = [
+      { name: { $regex: safe, $options: 'i' } },
+      { phone: { $regex: safe, $options: 'i' } },
+    ];
+  }
+
+  const leads = await Lead.find(filter)
+    .populate('assignedTo', 'name email')
+    .sort({ isPinned: -1, updatedAt: -1 });
+
+  res.json({ leads, total: leads.length });
+});
+
+// GET /leads/:id/appointment
+// Fetch the appointment for a specific lead (if any).
+exports.getLeadAppointment = asyncHandler(async (req, res) => {
+  const Appointment = require('../models/Appointment.model');
+  const appointment = await Appointment.findOne({ lead: req.params.id })
+    .populate('createdBy', 'name')
+    .sort({ createdAt: -1 });
+
+  if (!appointment) return res.status(404).json({ message: 'No appointment found' });
+  res.json({ appointment });
 });
