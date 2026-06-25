@@ -83,9 +83,9 @@ export default function AdminDashboardScreen() {
   // tracks `pendingLeads` as a today-count only. We only chart the 4 statuses
   // that are actually returned by /admin/stats.
   const statusBarData = [
-    { value: stats.interested || 0, label: 'Interest.', frontColor: colors.statusInterested, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
+    { value: stats.interested || 0, label: 'Interested', frontColor: colors.statusInterested, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
     { value: stats.contacted || 0, label: 'Contacted', frontColor: colors.statusContacted, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
-    { value: stats.notInterested || 0, label: 'Not Int.', frontColor: colors.statusNotInterested, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
+    { value: stats.notInterested || 0, label: 'Not Interested', frontColor: colors.statusNotInterested, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
     { value: stats.booked || 0, label: 'Booked', frontColor: colors.statusBooked, labelTextStyle: { color: colors.textSecondary, fontSize: 9 } },
   ];
   const hasBarData = statusBarData.some((d) => d.value > 0);
