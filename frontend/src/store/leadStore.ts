@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Lead, LeadFilters } from '../types/lead.types';
+import { Lead, LeadFilters, LeadStatus } from '../types/lead.types';
 import axiosInstance from '../api/axiosInstance';
 
 export interface CreateLeadPayload {
@@ -12,6 +12,7 @@ export interface CreateLeadPayload {
   campaign?: string;
   car?: string;
   assignedTo?: string;
+  status?: LeadStatus;
 }
 
 interface DashboardStats {

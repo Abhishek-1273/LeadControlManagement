@@ -9,7 +9,8 @@
     "seed": "node scripts/seedLeads.js",
     "check-duplicate-phones": "node scripts/checkDuplicatePhones.js",
     "migrate:deleted-status": "node scripts/migrateDeletedStatus.js",
-    "migrate:pending-status": "node scripts/migratePendingStatus.js"
+    "migrate:pending-status": "node scripts/migratePendingStatus.js",
+    "migrate:status-updated-at": "node scripts/backfillStatusUpdatedAt.js"
   },
   "keywords": [],
   "author": "",

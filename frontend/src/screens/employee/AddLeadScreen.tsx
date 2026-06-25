@@ -9,9 +9,29 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import { useLeadStore } from '../../store/leadStore';
+import { LeadStatus } from '../../types/lead.types';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Status options for manual lead creation. 'New' is included as the default
+// starting point; 'Deleted' is excluded since it's a soft-delete-only state
+// set by the delete action, not something a manual create should set
+// (mirrors LEAD_STATUSES in the backend's leadValidators.js).
+// ─────────────────────────────────────────────────────────────────────────────
+const STATUS_OPTIONS: LeadStatus[] = [
+  'New', 'Interested', 'Contacted', 'Not Interested', 'Pending', 'Booked',
+];
+
+const STATUS_COLORS: Record<string, string> = {
+  'New': '#6B7280',
+  'Interested': '#EF4444',
+  'Contacted': '#F59E0B',
+  'Not Interested': '#3B82F6',
+  'Pending': '#D97706',
+  'Booked': '#059669',
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -113,6 +133,7 @@ export default function AddLeadScreen() {
   const [city, setCity] = useState('');
   const [car, setCar] = useState('');
   const [campaign, setCampaign] = useState('');
+  const [status, setStatus] = useState<LeadStatus>('New');
 
   // UI state
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -141,6 +162,7 @@ export default function AddLeadScreen() {
         car: car.trim() || undefined,
         campaign: campaign.trim() || undefined,
         source: 'Manual',
+        status: status !== 'New' ? status : undefined,
       });
 
       Toast.show({
@@ -286,6 +308,36 @@ export default function AddLeadScreen() {
               optional
               maxLength={80}
             />
+
+            <View style={styles.fieldGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Status</Text>
+              </View>
+              <View style={styles.statusChipRow}>
+                {STATUS_OPTIONS.map((opt) => {
+                  const isActive = status === opt;
+                  const dotColor = STATUS_COLORS[opt];
+                  return (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[
+                        styles.statusChip,
+                        isActive && { borderColor: dotColor, backgroundColor: dotColor + '15' },
+                      ]}
+                      onPress={() => setStatus(opt)}
+                    >
+                      <View style={[styles.statusChipDot, { backgroundColor: dotColor }]} />
+                      <Text style={[
+                        styles.statusChipText,
+                        isActive && { color: dotColor, fontWeight: typography.bold },
+                      ]}>
+                        {opt}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
           </View>
 
           {/* ── Submit ── */}
@@ -423,6 +475,33 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     color: colors.error,
+  },
+
+  // Status chips
+  statusChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  statusChipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusChipText: {
+    fontSize: typography.sm,
+    color: colors.textPrimary,
   },
 
   // Submit

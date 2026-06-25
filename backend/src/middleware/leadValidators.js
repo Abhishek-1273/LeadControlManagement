@@ -100,5 +100,9 @@ module.exports = {
     body('assignedTo')
       .optional({ checkFalsy: true })
       .isMongoId().withMessage('Invalid assignedTo employee ID'),
+    body('status')
+      .optional({ checkFalsy: true })
+      .isString().trim().isIn(LEAD_STATUSES)
+      .withMessage(`Invalid status. Allowed: ${LEAD_STATUSES.join(', ')}`),
   ],
 };

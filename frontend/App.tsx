@@ -6,9 +6,16 @@ import Toast from 'react-native-toast-message';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
-import React from 'react';
+import * as SplashScreen from 'expo-splash-screen';
+import React, { useState, useCallback } from 'react';
 import AppNavigator from './src/navigation/AppNavigator';
+import SplashAnimation from './src/components/common/SplashAnimation';
 import { colors } from './src/theme/colors';
+
+// Keep the native splash visible until our custom animation is ready to
+// take over — avoids a blank-white flash between native splash and our
+// component mounting.
+SplashScreen.preventAutoHideAsync();
 
 const toastConfig = {
   success: ({ text1, text2 }: any) => (
@@ -72,6 +79,14 @@ const toastConfig = {
 
 export default function App() {
   const navigationRef = React.useRef<any>(null);
+  const [showSplash, setShowSplash] = useState(true);
+
+  React.useEffect(() => {
+    // Custom animation is mounted and ready — hand off from native splash.
+    SplashScreen.hideAsync();
+  }, []);
+
+  const handleSplashFinish = useCallback(() => setShowSplash(false), []);
 
   React.useEffect(() => {
     // ── Notification handler — app open ho tab bhi alert dikhao
@@ -101,12 +116,18 @@ export default function App() {
       <SafeAreaProvider>
         <PaperProvider>
           <StatusBar style="auto" backgroundColor={colors.white} />
-          <AppNavigator navigationRef={navigationRef} />
-          <Toast
-            config={toastConfig}
-            position="bottom"
-            bottomOffset={80}
-          />
+          {showSplash ? (
+            <SplashAnimation onFinish={handleSplashFinish} />
+          ) : (
+            <>
+              <AppNavigator navigationRef={navigationRef} />
+              <Toast
+                config={toastConfig}
+                position="bottom"
+                bottomOffset={80}
+              />
+            </>
+          )}
         </PaperProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

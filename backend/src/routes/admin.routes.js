@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const adminOnly = require('../middleware/adminOnly');
+const validate = require('../middleware/validate');
+const { addEmployeeRules, updateEmployeeRules } = require('../middleware/employeeValidators');
 const ctrl = require('../controllers/admin.controller');
 
 // All routes admin only
@@ -13,9 +15,9 @@ router.get('/monthly-trend', ctrl.getMonthlyTrend);
 
 // Employee routes
 router.get('/employees', ctrl.getEmployees);
-router.post('/employees', ctrl.addEmployee);
+router.post('/employees', addEmployeeRules, validate, ctrl.addEmployee);
 router.get('/employees/:id', ctrl.getEmployeeById);
-router.patch('/employees/:id', ctrl.updateEmployee);
+router.patch('/employees/:id', updateEmployeeRules, validate, ctrl.updateEmployee);
 router.patch('/employees/:id/toggle', ctrl.toggleEmployeeStatus);
 
 // Lead archive/history (paginated, filterable)

@@ -168,6 +168,7 @@ exports.updateStatus = asyncHandler(async (req, res) => {
 
   const oldStatus = lead.status;
   lead.status = status;
+  lead.statusUpdatedAt = new Date();
   lead.timeline.push({
     type: 'status_changed',
     description: `Status changed: ${oldStatus} → ${status}`,
@@ -220,7 +221,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     await Lead.updateMany(
       { assignedTo: _id, status: 'New', createdAt: { $lt: todayStart } },
       {
-        $set: { status: 'Pending' },
+        $set: { status: 'Pending', statusUpdatedAt: new Date() },
         $push: {
           timeline: {
             type: 'status_changed',
@@ -355,7 +356,7 @@ exports.getEmployeeTodayLeads = asyncHandler(async (req, res) => {
     ],
   })
     .populate('assignedTo', 'name email')
-    .sort({ isPinned: -1, createdAt: -1 });
+    .sort({ isPinned: -1, statusUpdatedAt: -1 });
 
   res.json({ leads, total: leads.length });
 });
@@ -370,7 +371,7 @@ exports.getEmployeePendingLeads = asyncHandler(async (req, res) => {
   await Lead.updateMany(
     { assignedTo: _id, status: 'New', createdAt: { $lt: todayStart } },
     {
-      $set: { status: 'Pending' },
+      $set: { status: 'Pending', statusUpdatedAt: new Date() },
       $push: {
         timeline: {
           type: 'status_changed',
@@ -418,7 +419,7 @@ exports.createLead = asyncHandler(async (req, res) => {
   const {
     name, primaryPhone, secondaryPhone,
     email, city, source, campaign, car,
-    assignedTo,
+    assignedTo, status,
   } = req.body;
 
   const clip = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
@@ -457,6 +458,8 @@ exports.createLead = asyncHandler(async (req, res) => {
     assignee = req.user._id;
   }
 
+const initialStatus = status || 'New';
+
 const lead = await Lead.create({
     name: clip(name, 120),
     phone: primary,
@@ -466,13 +469,14 @@ const lead = await Lead.create({
     source: clip(source, 40) || 'Manual',
     campaign: clip(campaign, 120),
     car: clip(car, 80),
-    status: 'New',
+    status: initialStatus,
     assignedTo: assignee,
     timeline: [{
       type: 'created',
       description: (clip(source, 40) || 'Manual') === 'WhatsApp'
         ? 'Lead received via WhatsApp'
-        : `Lead created manually by ${req.user.name}` + (assignee ? '' : ' (unassigned)'),
+        : `Lead created manually by ${req.user.name}` + (assignee ? '' : ' (unassigned)')
+          + (initialStatus !== 'New' ? ` — status set to ${initialStatus}` : ''),
     }],
   });
 
@@ -618,6 +622,7 @@ exports.restoreLead = asyncHandler(async (req, res) => {
   }
 
   lead.status = lead.statusBeforeDelete || 'New';
+  lead.statusUpdatedAt = new Date();
   lead.isDeleted = false;
   lead.deletedAt = null;
   lead.deletedBy = null;

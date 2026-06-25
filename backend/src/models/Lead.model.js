@@ -40,6 +40,13 @@ const leadSchema = new mongoose.Schema({
     default: 'New',
   },
 
+  // Bumped only on creation and explicit status change (see updateStatus in
+  // lead.controller.js) — NOT on every save. Drives the "moves to top of
+  // its filter" ordering, kept separate from `updatedAt` (which also
+  // changes on pin/unpin, notes, follow-ups, assignment, etc. — none of
+  // which should reorder the list).
+  statusUpdatedAt: { type: Date, default: Date.now },
+
   // Soft-delete fields
   isDeleted: { type: Boolean, default: false },
   deletedAt: { type: Date, default: null },
@@ -57,6 +64,7 @@ leadSchema.index({ secondaryPhone: 1 }, { sparse: true });
 leadSchema.index({ assignedTo: 1, createdAt: -1 });
 leadSchema.index({ assignedTo: 1, status: 1 });
 leadSchema.index({ status: 1, updatedAt: -1 });
+leadSchema.index({ assignedTo: 1, statusUpdatedAt: -1 });
 leadSchema.index({ createdAt: -1 });
 
 // ─── Auto-assign hook ────────────────────────────────────────────────────────

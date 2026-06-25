@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Appointment = require('../models/Appointment.model');
 const Lead = require('../models/Lead.model');
 const asyncHandler = require('../utils/asyncHandler');
@@ -27,22 +28,38 @@ exports.createAppointment = asyncHandler(async (req, res) => {
     return res.status(409).json({ message: 'This time slot has just been booked. Please pick another.' });
   }
 
-  // Set lead status to Booked
-  const oldStatus = lead.status;
-  lead.status = 'Booked';
-  lead.timeline.push({
-    type: 'appointment_set',
-    description: `Appointment booked for ${appointmentDate} at ${appointmentTime} by ${req.user.name}`,
-  });
-  await lead.save();
+  // FIX: lead.save() and Appointment.create() used to be two independent
+  // writes. If Appointment.create() failed for any reason after the lead
+  // was already saved as 'Booked', the lead was left stuck in a 'Booked'
+  // state with no appointment behind it. Wrapping both writes in a
+  // transaction means either both succeed together or neither does.
+  const session = await mongoose.startSession();
+  let appointment;
+  try {
+    await session.withTransaction(async () => {
+      lead.status = 'Booked';
+      lead.statusUpdatedAt = new Date();
+      lead.timeline.push({
+        type: 'appointment_set',
+        description: `Appointment booked for ${appointmentDate} at ${appointmentTime} by ${req.user.name}`,
+      });
+      await lead.save({ session });
 
-  const appointment = await Appointment.create({
-    lead: leadId,
-    appointmentDate,
-    appointmentTime,
-    description: description || '',
-    createdBy: req.user._id,
-  });
+      appointment = await Appointment.create(
+        [{
+          lead: leadId,
+          appointmentDate,
+          appointmentTime,
+          description: description || '',
+          createdBy: req.user._id,
+        }],
+        { session }
+      );
+      appointment = appointment[0]; // create() with an array + session returns an array
+    });
+  } finally {
+    await session.endSession();
+  }
 
   const populated = await appointment.populate([
     { path: 'lead', select: 'name phone status assignedTo', populate: { path: 'assignedTo', select: 'name' } },

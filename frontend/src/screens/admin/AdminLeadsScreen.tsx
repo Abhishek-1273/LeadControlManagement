@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLeadStore } from '../../store/leadStore';
 import { useAdminStore } from '../../store/adminStore';
+import { LeadStatus } from '../../types/lead.types';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -72,6 +73,7 @@ function AddLeadModal({
   const { createLead } = useLeadStore();
 
   const [form, setForm] = useState(EMPTY_FORM);
+  const [status, setStatus] = useState<LeadStatus>('New');
   const [errors, setErrors] = useState<Partial<typeof EMPTY_FORM & { assignedTo: string }>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -104,6 +106,7 @@ function AddLeadModal({
     setErrors({});
     setIsSubmitting(false);
     setSelectedEmployee(null);
+    setStatus('New');
     onClose();
   };
 
@@ -132,6 +135,7 @@ function AddLeadModal({
         car: form.car.trim() || undefined,
         source: 'Manual',
         assignedTo: selectedEmployee?._id,
+        status: status !== 'New' ? status : undefined,
       });
       onSuccess(form.name.trim());
       resetAndClose();
@@ -249,6 +253,31 @@ function AddLeadModal({
               autoCapitalize="words"
               maxLength={80}
             />
+
+            <Text style={addStyles.label}>🏷️ Status</Text>
+            <View style={addStyles.statusChipRow}>
+              {STATUS_FILTERS.map((opt) => {
+                const isActive = status === opt.value;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      addStyles.statusChip,
+                      isActive && { borderColor: opt.color, backgroundColor: opt.color + '15' },
+                    ]}
+                    onPress={() => setStatus(opt.value as LeadStatus)}
+                  >
+                    <View style={[addStyles.statusChipDot, { backgroundColor: opt.color }]} />
+                    <Text style={[
+                      addStyles.statusChipText,
+                      isActive && { color: opt.color, fontWeight: '700' },
+                    ]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             <Text style={[addStyles.sectionLabel, { marginTop: spacing.md }]}>ASSIGN</Text>
             <Text style={addStyles.label}>👔 Assign to Employee</Text>
@@ -709,6 +738,17 @@ const addStyles = StyleSheet.create({
   pickerItemActive: { backgroundColor: colors.primaryLight },
   pickerItemText: { fontSize: typography.base, color: colors.textPrimary },
   pickerItemTextActive: { color: colors.primary, fontWeight: typography.semiBold },
+  statusChipRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm,
+  },
+  statusChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: spacing.sm + 2, paddingVertical: spacing.xs + 2,
+    borderRadius: 20, borderWidth: 1.5, borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  statusChipDot: { width: 8, height: 8, borderRadius: 4 },
+  statusChipText: { fontSize: typography.sm, color: colors.textPrimary },
   footer: {
     flexDirection: 'row', gap: spacing.md,
     padding: spacing.base, borderTopWidth: 1, borderTopColor: colors.border,
