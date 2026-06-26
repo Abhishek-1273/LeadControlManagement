@@ -101,6 +101,7 @@ function EmployeeCard({ item }: { item: EmployeePerformance }) {
 }
 
 export default function PerformanceDashboardScreen() {
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { performanceData, fetchPerformanceDashboard, isLoading } = useAdminStore();
   const [refreshing, setRefreshing] = React.useState(false);
@@ -116,6 +117,7 @@ export default function PerformanceDashboardScreen() {
     await fetchPerformanceDashboard();
     setRefreshing(false);
   };
+  
 
   // Sort by bookedToday desc, then conversionRate desc
   const sorted = [...performanceData].sort(
@@ -129,7 +131,12 @@ export default function PerformanceDashboardScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
+                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                  <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+                </TouchableOpacity>
         <Text style={styles.title}>Team Performance</Text>
+      </View>
+      <View style={styles.header}>
         <Text style={styles.subtitle}>Today's booking overview</Text>
       </View>
 
@@ -171,9 +178,25 @@ export default function PerformanceDashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.base,
     paddingTop: spacing.base,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  subheader:{
+        paddingTop: spacing.base,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
+  },
+    backBtn: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: colors.white,
+    justifyContent: 'center', alignItems: 'center',
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   title: {
     fontSize: typography.xl,

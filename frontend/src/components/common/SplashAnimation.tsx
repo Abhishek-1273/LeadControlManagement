@@ -17,33 +17,51 @@ interface SplashAnimationProps {
   onFinish: () => void;
 }
 
-export default function SplashAnimation({ onFinish }: SplashAnimationProps) {
-  const scale = useSharedValue(0.3);
+export default function SplashAnimation({
+  onFinish,
+}: SplashAnimationProps) {
+  const scale = useSharedValue(0.5);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
-    // Phase 1: fade in + scale up smoothly (0.3 → 1.0)
-    opacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) });
-
+    // Scale Animation
     scale.value = withSequence(
-      // Scale up: small → full size, smooth ease
-      withTiming(1.0, { duration: 600, easing: Easing.out(Easing.cubic) }),
-      // Hold for a moment
+      withTiming(1, {
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+      }),
       withDelay(
         400,
-        // Phase 2: scale down + fade out together, then call onFinish
-        withTiming(0.15, { duration: 500, easing: Easing.in(Easing.cubic) }, () => {
-          runOnJS(onFinish)();
-        })
+        withTiming(
+          0.2,
+          {
+            duration: 500,
+            easing: Easing.in(Easing.cubic),
+          },
+          (finished) => {
+            if (finished) {
+              runOnJS(onFinish)();
+            }
+          }
+        )
       )
     );
 
-    // Fade out synced with scale down
+    // Opacity Animation
     opacity.value = withSequence(
-      withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) }),
-      withDelay(400, withTiming(0, { duration: 500, easing: Easing.in(Easing.cubic) }))
+      withTiming(1, {
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+      }),
+      withDelay(
+        400,
+        withTiming(0, {
+          duration: 500,
+          easing: Easing.in(Easing.cubic),
+        })
+      )
     );
-  }, []);
+  }, [onFinish, opacity, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -55,7 +73,11 @@ export default function SplashAnimation({ onFinish }: SplashAnimationProps) {
       <Animated.View style={animatedStyle}>
         <Image
           source={require('../../../assets/icon.png')}
-          style={{ width: LOGO_SIZE, height: LOGO_SIZE, borderRadius: LOGO_SIZE * 0.22 }}
+          style={{
+            width: LOGO_SIZE,
+            height: LOGO_SIZE,
+            borderRadius: LOGO_SIZE * 0.22,
+          }}
           resizeMode="contain"
         />
       </Animated.View>
@@ -66,8 +88,8 @@ export default function SplashAnimation({ onFinish }: SplashAnimationProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
+    alignItems: 'center',
   },
 });

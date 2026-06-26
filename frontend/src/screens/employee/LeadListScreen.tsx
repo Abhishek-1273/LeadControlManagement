@@ -245,7 +245,7 @@ const FilterModal = ({
 
 const EMPTY_FORM = {
   name: '', primaryPhone: '', secondaryPhone: '',
-  email: '', city: '', car: '',
+  email: '', city: '', car: '', status: 'New' as LeadStatus,
 };
 
 const AddLeadModal = ({
@@ -260,7 +260,7 @@ const AddLeadModal = ({
   const { createLead } = useLeadStore();
 
   const [form, setForm] = useState(EMPTY_FORM);
-  const [errors, setErrors] = useState<Partial<typeof EMPTY_FORM>>({});
+  const [errors, setErrors] = useState<Partial<Record<'name' | 'primaryPhone' | 'secondaryPhone' | 'email' | 'city' | 'car', string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const set = (field: keyof typeof EMPTY_FORM) => (val: string) => {
@@ -276,7 +276,7 @@ const AddLeadModal = ({
   };
 
   const handleSubmit = async () => {
-    const errs: Partial<typeof EMPTY_FORM> = {};
+    const errs: Partial<Record<'name' | 'primaryPhone' | 'secondaryPhone' | 'email' | 'city' | 'car', string>> = {};
     if (!form.name.trim()) errs.name = 'Name is required';
     if (!form.primaryPhone.trim()) errs.primaryPhone = 'Primary phone is required';
     else if (!PHONE_REGEX.test(form.primaryPhone)) errs.primaryPhone = 'Must be a valid 10-digit number';
@@ -304,6 +304,7 @@ const AddLeadModal = ({
         city: form.city.trim() || undefined,
         car: form.car.trim() || undefined,
         source: 'Manual',
+        status: form.status !== 'New' ? form.status as LeadStatus : undefined,
       });
       onSuccess(form.name.trim());
       resetAndClose();
@@ -422,6 +423,35 @@ const AddLeadModal = ({
               autoCapitalize="words"
               maxLength={80}
             />
+
+            <Text style={filterStyles.label}>🏷️ Status</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
+              {(['New', 'Interested', 'Contacted', 'Not Interested', 'Pending', 'Booked'] as LeadStatus[]).map((opt) => {
+                const COLOR: Record<string, string> = {
+                  New: '#6B7280', Interested: '#EF4444', Contacted: '#F59E0B',
+                  'Not Interested': '#3B82F6', Pending: '#D97706', Booked: '#059669',
+                };
+                const isActive = form.status === opt;
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    onPress={() => setForm(prev => ({ ...prev, status: opt }))}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 6,
+                      paddingHorizontal: 10, paddingVertical: 6,
+                      borderRadius: 20, borderWidth: 1.5,
+                      borderColor: isActive ? COLOR[opt] : colors.border,
+                      backgroundColor: isActive ? COLOR[opt] + '15' : colors.background,
+                    }}
+                  >
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLOR[opt] }} />
+                    <Text style={{ fontSize: 12, color: isActive ? COLOR[opt] : colors.textPrimary, fontWeight: isActive ? '700' : '400' }}>
+                      {opt}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </ScrollView>
 
           <View style={filterStyles.footer}>

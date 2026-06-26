@@ -9,8 +9,8 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
-const SUPPORT_EMAIL = 'support@leadmanager.com';
-const SUPPORT_PHONE = '+911234567890';
+const SUPPORT_EMAIL = 'veltaaisystem@gmail.com';
+const SUPPORT_PHONE = '+919960240648';
 
 const FAQS = [
   {
